@@ -13,15 +13,14 @@ export const router = tRPCContext.router;
 export const publicProcedure = tRPCContext.procedure;
 
 export const protectedProcedure = tRPCContext.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.session?.session || !ctx.session?.user) {
+  if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
   }
 
   return next({
     ctx: {
       ...ctx,
-      session: ctx.session,
-      user: ctx.session.user,
+      user: ctx.user,
     },
   });
 });
