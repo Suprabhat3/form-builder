@@ -5,6 +5,8 @@ import cors from "cors";
 import * as trpcExpress from "@trpc/server/adapters/express";
 import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to-openapi";
 import { apiReference } from "@scalar/express-api-reference";
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "@repo/services/auth";
 
 import { serverRouter, createContext } from "@repo/trpc/server";
 
@@ -25,6 +27,7 @@ if (env.NODE_ENV !== "prod") {
   );
 }
 
+app.all("/api/auth/{*any}", toNodeHandler(auth));
 app.use(express.json());
 
 app.get("/", (req, res) => {

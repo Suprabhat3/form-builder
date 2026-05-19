@@ -9,8 +9,10 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.6.11",
     "@repo/database": "workspace:*",
     "@repo/logger": "workspace:*",
+    "better-auth": "^1.6.11",
     "google-auth-library": "^10.5.0",
     "zod": "^4.3.5"
   }
