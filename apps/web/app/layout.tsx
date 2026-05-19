@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { GlobalProviders } from "~/providers/global";
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-jakarta",
+});
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -13,8 +19,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Streamyst",
-  description: "Media Forwarding",
+  title: "FormFlow - Effortless Precision",
+  description: "Build Forms That Look Like Art.",
 };
 
 export default function RootLayout({
@@ -23,8 +29,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className="light">
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} font-body-md`}>
         <GlobalProviders>{children}</GlobalProviders>
       </body>
     </html>
