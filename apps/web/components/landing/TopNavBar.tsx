@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export function TopNavBar() {
   return (
@@ -9,13 +10,8 @@ export function TopNavBar() {
           className="text-headline-md font-headline-md md:text-headline-md md:font-headline-md font-bold tracking-tight text-on-surface dark:text-on-surface flex items-center gap-xs hover:opacity-80 transition-opacity"
           href="#"
         >
-          <span
-            className="material-symbols-outlined text-primary"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            layers
-          </span>
-          FormFlow
+          <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-full" />
+          ZenForm
         </Link>
         {/* Navigation Links (Desktop) */}
         <div className="hidden md:flex items-center gap-lg">

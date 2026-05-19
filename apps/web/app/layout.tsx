@@ -19,7 +19,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "FormFlow - Effortless Precision",
+  title: "ZenForm - Effortless Precision",
   description: "Build Forms That Look Like Art.",
 };
 
@@ -31,9 +31,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="light">
       <head>
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} font-body-md`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} font-body-md`}
+      >
         <GlobalProviders>{children}</GlobalProviders>
       </body>
     </html>

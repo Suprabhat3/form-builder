@@ -13,10 +13,10 @@ export function Footer() {
             >
               layers
             </span>
-            FormFlow
+            ZenForm
           </span>
           <span className="text-body-md font-body-md text-secondary dark:text-secondary-fixed-dim">
-            © 2024 FormFlow. All rights reserved.
+            © 2024 ZenForm. All rights reserved.
           </span>
         </div>
         {/* Links */}
