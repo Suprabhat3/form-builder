@@ -7,6 +7,8 @@ import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to
 import { apiReference } from "@scalar/express-api-reference";
 
 import { serverRouter, createContext } from "@repo/trpc/server";
+import { authService } from "@repo/services/auth";
+import { googleOAuth2Client } from "@repo/services/clients/google-oauth";
 
 import { env } from "./env";
 
@@ -20,7 +22,8 @@ const openApiDocument = generateOpenApiDocument(serverRouter, {
 if (env.NODE_ENV !== "prod") {
   app.use(
     cors({
-      origin: "*",
+      origin: env.FRONTEND_URL,
+      credentials: true,
     }),
   );
 }
@@ -33,6 +36,32 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => {
   return res.json({ message: "Streamyst server is healthy", healthy: true });
+});
+
+app.get("/auth/google/start", (req, res) => {
+  const authUrl = googleOAuth2Client.generateAuthUrl({
+    access_type: "offline",
+    scope: ["openid", "email", "profile"],
+    prompt: "consent",
+  });
+
+  return res.redirect(authUrl);
+});
+
+app.get("/auth/google/callback", async (req, res) => {
+  const code = req.query.code;
+  if (typeof code !== "string" || !code) {
+    return res.redirect(`${env.FRONTEND_URL}/login?error=google_auth_failed`);
+  }
+
+  try {
+    const result = await authService.signInWithGoogleAuthCode(code);
+    const authPayload = Buffer.from(JSON.stringify(result)).toString("base64url");
+    return res.redirect(`${env.FRONTEND_URL}/login?auth=${encodeURIComponent(authPayload)}`);
+  } catch (error) {
+    logger.error("Google auth callback failed", { error });
+    return res.redirect(`${env.FRONTEND_URL}/login?error=google_auth_failed`);
+  }
 });
 
 logger.debug(`openapi.json: ${env.BASE_URL}/openapi.json`);

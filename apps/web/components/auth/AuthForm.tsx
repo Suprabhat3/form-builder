@@ -1,19 +1,94 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { setAuthSession, setPendingSignup } from "~/lib/auth-session";
+import { env } from "~/env.js";
+import { trpc } from "~/trpc/client";
 
 export function AuthForm({ type }: { type: "login" | "signup" }) {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const isLogin = type === "login";
   const title = isLogin ? "Welcome back" : "Create an account";
   const subtitle = isLogin
     ? "Enter your details to access your account."
     : "Sign up to start building beautiful forms.";
 
+  const sendOtpMutation = trpc.auth.sendEmailVerificationCode.useMutation();
+  const signInMutation = trpc.auth.signInWithEmail.useMutation();
+
+  const isSubmitting = sendOtpMutation.isPending || signInMutation.isPending;
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const auth = url.searchParams.get("auth");
+    const error = url.searchParams.get("error");
+
+    if (error === "google_auth_failed") {
+      toast.error("Google authentication failed");
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.toString());
+      return;
+    }
+
+    if (!auth) return;
+    try {
+      const normalized = auth.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+      const decoded = JSON.parse(
+        new TextDecoder().decode(Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))),
+      ) as {
+        accessToken: string;
+        refreshToken: string;
+        user: { id: string; email: string; name: string; image: string | null; emailVerified: boolean };
+      };
+
+      setAuthSession(decoded);
+      toast.success("Signed in with Google");
+      url.searchParams.delete("auth");
+      window.history.replaceState({}, "", url.toString());
+      router.push("/");
+      router.refresh();
+    } catch {
+      toast.error("Invalid Google auth response");
+    }
+  }, [router]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    try {
+      if (isLogin) {
+        const result = await signInMutation.mutateAsync({ email, password });
+        setAuthSession(result);
+        toast.success("Signed in successfully");
+        router.push("/");
+        router.refresh();
+        return;
+      }
+
+      await sendOtpMutation.mutateAsync({ email });
+      setPendingSignup({ name, email, password });
+      toast.success("Verification code sent to your email");
+      router.push("/signup/verify");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Authentication failed");
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    window.location.href = `${authServerBaseUrl}/auth/google/start`;
+  };
+
   return (
     <div className="bg-background text-on-surface font-body-md antialiased min-h-screen flex flex-col relative overflow-x-hidden">
-      {/* Ambient Background Elements */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary-fixed/30 rounded-full blur-[120px]"></div>
         <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] bg-secondary-fixed/30 rounded-full blur-[100px]"></div>
@@ -42,7 +117,6 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
           className="w-full bg-surface-container-lowest rounded-2xl border border-outline-variant/40 soft-focus-shadow hover-lift relative overflow-hidden group"
           style={{ maxWidth: "448px", padding: "40px" }}
         >
-          {/* Decorative subtle top gradient */}
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50"></div>
 
           <div
@@ -62,7 +136,7 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
             </p>
           </div>
 
-          <form className="flex flex-col" style={{ gap: "24px" }}>
+          <form className="flex flex-col" style={{ gap: "24px" }} onSubmit={handleSubmit}>
             {!isLogin && (
               <div className="flex flex-col" style={{ gap: "8px" }}>
                 <label className="font-semibold text-on-surface" style={{ fontSize: "14px" }}>
@@ -70,9 +144,12 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
                 </label>
                 <input
                   type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
                   placeholder="John Doe"
                   className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200"
                   style={{ padding: "12px 24px", fontSize: "16px" }}
+                  required
                 />
               </div>
             )}
@@ -82,9 +159,12 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
               </label>
               <input
                 type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="hello@example.com"
                 className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200"
                 style={{ padding: "12px 24px", fontSize: "16px" }}
+                required
               />
             </div>
             <div className="flex flex-col" style={{ gap: "8px" }}>
@@ -105,9 +185,13 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
               <div className="relative w-full">
                 <input
                   type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
                   className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200"
                   style={{ padding: "12px 48px 12px 24px", fontSize: "16px" }}
+                  required
+                  minLength={8}
                 />
                 <button
                   type="button"
@@ -124,10 +208,11 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
 
             <button
               type="submit"
-              className="w-full font-bold bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-lg shadow-[0_4px_14px_0_rgba(70,72,212,0.39)] hover:shadow-[0_6px_20px_rgba(70,72,212,0.23)] hover:-translate-y-0.5 transition-all duration-200"
+              disabled={isSubmitting}
+              className="w-full font-bold bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-lg shadow-[0_4px_14px_0_rgba(70,72,212,0.39)] hover:shadow-[0_6px_20px_rgba(70,72,212,0.23)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0"
               style={{ padding: "14px 40px", marginTop: "8px", fontSize: "14px" }}
             >
-              {isLogin ? "Sign In" : "Create Account"}
+              {isSubmitting ? "Please wait..." : isLogin ? "Sign In" : "Continue"}
             </button>
           </form>
 
@@ -143,6 +228,8 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
           </div>
 
           <button
+            type="button"
+            onClick={handleGoogleSignIn}
             className="w-full font-bold bg-surface-container-lowest border border-outline-variant/50 text-on-surface rounded-lg hover:border-primary hover:text-primary transition-all duration-200 flex items-center justify-center soft-focus-shadow"
             style={{ padding: "14px 40px", gap: "12px", fontSize: "14px" }}
           >
@@ -184,3 +271,4 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
     </div>
   );
 }
+  const authServerBaseUrl = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/trpc").replace(/\/trpc\/?$/, "");

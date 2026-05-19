@@ -1,4 +1,4 @@
-import { db, eq, and, gt } from "@repo/database";
+import { db, eq, and, gt, sql } from "@repo/database";
 import { usersTable, accountsTable, verificationTable } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 import bcrypt from "bcryptjs";
@@ -10,6 +10,7 @@ import { env } from "../env";
 import { sendEmailVerificationCode } from "./email-verification";
 
 const EMAIL_VERIFICATION_TTL_MS = 10 * 60 * 1000;
+let verificationStorageReady: Promise<void> | null = null;
 
 type JwtPayload = {
   sub: string;
@@ -32,6 +33,39 @@ function createSixDigitOtp(): string {
   return String(crypto.randomInt(0, 1000000)).padStart(6, "0");
 }
 
+async function ensureVerificationStorage(): Promise<void> {
+  if (!verificationStorageReady) {
+    verificationStorageReady = (async () => {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "verification" (
+          "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          "identifier" varchar(255) NOT NULL,
+          "value" text NOT NULL,
+          "expires_at" timestamp with time zone NOT NULL,
+          "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+          "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+        );
+      `);
+
+      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+      await db.execute(sql`ALTER TABLE "verification" ADD COLUMN IF NOT EXISTS "id" uuid DEFAULT gen_random_uuid();`);
+      await db.execute(sql`ALTER TABLE "verification" ADD COLUMN IF NOT EXISTS "identifier" varchar(255);`);
+      await db.execute(sql`ALTER TABLE "verification" ADD COLUMN IF NOT EXISTS "value" text;`);
+      await db.execute(
+        sql`ALTER TABLE "verification" ADD COLUMN IF NOT EXISTS "expires_at" timestamp with time zone;`,
+      );
+      await db.execute(
+        sql`ALTER TABLE "verification" ADD COLUMN IF NOT EXISTS "created_at" timestamp with time zone DEFAULT now();`,
+      );
+      await db.execute(
+        sql`ALTER TABLE "verification" ADD COLUMN IF NOT EXISTS "updated_at" timestamp with time zone DEFAULT now();`,
+      );
+    })();
+  }
+
+  await verificationStorageReady;
+}
+
 function signAccessToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
     expiresIn: env.JWT_ACCESS_EXPIRES_IN as SignOptions["expiresIn"],
@@ -49,17 +83,19 @@ export function verifyAccessToken(token: string): JwtPayload {
 }
 
 async function upsertEmailVerificationToken(email: string, otp: string): Promise<void> {
+  await ensureVerificationStorage();
+
   const identifier = `email-verification:${email.toLowerCase()}`;
   const codeHash = sha256(otp);
   const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
 
   const existing = await db
-    .select({ id: verificationTable.id })
+    .select({ identifier: verificationTable.identifier })
     .from(verificationTable)
     .where(eq(verificationTable.identifier, identifier))
     .limit(1);
 
-  if (existing[0]?.id) {
+  if (existing[0]?.identifier) {
     await db
       .update(verificationTable)
       .set({
@@ -67,7 +103,7 @@ async function upsertEmailVerificationToken(email: string, otp: string): Promise
         expiresAt,
         updatedAt: new Date(),
       })
-      .where(eq(verificationTable.id, existing[0].id));
+      .where(eq(verificationTable.identifier, identifier));
     return;
   }
 
@@ -79,13 +115,15 @@ async function upsertEmailVerificationToken(email: string, otp: string): Promise
 }
 
 async function consumeEmailVerificationToken(email: string, otp: string): Promise<boolean> {
+  await ensureVerificationStorage();
+
   const identifier = `email-verification:${email.toLowerCase()}`;
   const codeHash = sha256(otp);
   const now = new Date();
 
   const row = await db
     .select({
-      id: verificationTable.id,
+      identifier: verificationTable.identifier,
       value: verificationTable.value,
       expiresAt: verificationTable.expiresAt,
     })
@@ -97,7 +135,9 @@ async function consumeEmailVerificationToken(email: string, otp: string): Promis
     return false;
   }
 
-  await db.delete(verificationTable).where(eq(verificationTable.id, row[0].id));
+  await db
+    .delete(verificationTable)
+    .where(and(eq(verificationTable.identifier, identifier), eq(verificationTable.value, codeHash)));
   return true;
 }
 
