@@ -2,24 +2,23 @@ import { z, zodUndefinedModel } from "../../schema";
 import { userService } from "../../services";
 import { getAuthenticationMethodOutputSchema } from "@repo/services/user/model";
 import { authService } from "@repo/services/auth";
+import {
+  authTokensOutputSchema,
+  authUserSchema,
+  refreshSessionInputSchema,
+  sendEmailVerificationInputSchema,
+  signOutInputSchema,
+  signInWithEmailInputSchema,
+  signInWithGoogleInputSchema,
+  signUpWithEmailInputSchema,
+  verifyEmailByCodeInputSchema,
+} from "@repo/services/auth/model";
 import { publicProcedure, protectedProcedure, router } from "../../trpc";
 import { generatePath } from "../../utils/path-generator";
 import { TRPCError } from "@trpc/server";
 
 const TAGS = ["Authentication"];
 const getPath = generatePath("/authentication");
-
-const authTokensOutputSchema = z.object({
-  accessToken: z.string(),
-  refreshToken: z.string(),
-  user: z.object({
-    id: z.string(),
-    email: z.string().email(),
-    name: z.string(),
-    image: z.string().nullable(),
-    emailVerified: z.boolean(),
-  }),
-});
 
 export const authRouter = router({
   getSupportedAuthenticationProviders: publicProcedure
@@ -32,7 +31,7 @@ export const authRouter = router({
 
   sendEmailVerificationCode: publicProcedure
     .meta({ openapi: { method: "POST", path: getPath("/email/send-verification-code"), tags: TAGS } })
-    .input(z.object({ email: z.string().email() }))
+    .input(sendEmailVerificationInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input }) => {
       await authService.sendEmailVerificationOtp(input.email);
@@ -41,7 +40,7 @@ export const authRouter = router({
 
   verifyEmailByCode: publicProcedure
     .meta({ openapi: { method: "POST", path: getPath("/email/verify-code"), tags: TAGS } })
-    .input(z.object({ email: z.string().email(), otp: z.string().length(6) }))
+    .input(verifyEmailByCodeInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input }) => {
       await authService.verifyEmailOtp(input.email, input.otp);
@@ -50,14 +49,7 @@ export const authRouter = router({
 
   signUpWithEmail: publicProcedure
     .meta({ openapi: { method: "POST", path: getPath("/signup/email"), tags: TAGS } })
-    .input(
-      z.object({
-        name: z.string().min(2),
-        email: z.string().email(),
-        password: z.string().min(8),
-        otp: z.string().length(6),
-      }),
-    )
+    .input(signUpWithEmailInputSchema)
     .output(authTokensOutputSchema)
     .mutation(async ({ input }) => {
       try {
@@ -69,12 +61,7 @@ export const authRouter = router({
 
   signInWithEmail: publicProcedure
     .meta({ openapi: { method: "POST", path: getPath("/signin/email"), tags: TAGS } })
-    .input(
-      z.object({
-        email: z.string().email(),
-        password: z.string().min(8),
-      }),
-    )
+    .input(signInWithEmailInputSchema)
     .output(authTokensOutputSchema)
     .mutation(async ({ input }) => {
       try {
@@ -86,7 +73,7 @@ export const authRouter = router({
 
   signInWithGoogle: publicProcedure
     .meta({ openapi: { method: "POST", path: getPath("/signin/google"), tags: TAGS } })
-    .input(z.object({ code: z.string().min(1) }))
+    .input(signInWithGoogleInputSchema)
     .output(authTokensOutputSchema)
     .mutation(async ({ input }) => {
       try {
@@ -96,17 +83,30 @@ export const authRouter = router({
       }
     }),
 
+  refreshSession: publicProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/refresh"), tags: TAGS } })
+    .input(refreshSessionInputSchema)
+    .output(authTokensOutputSchema)
+    .mutation(async ({ input }) => {
+      try {
+        return await authService.refreshSession(input.refreshToken);
+      } catch (error) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: (error as Error).message });
+      }
+    }),
+
+  signOut: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/signout"), tags: TAGS } })
+    .input(signOutInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input }) => {
+      await authService.signOut(input.refreshToken);
+      return { success: true };
+    }),
+
   me: protectedProcedure
     .meta({ openapi: { method: "GET", path: getPath("/me"), tags: TAGS } })
     .input(zodUndefinedModel)
-    .output(
-      z.object({
-        id: z.string(),
-        email: z.string().email(),
-        name: z.string(),
-        image: z.string().nullable(),
-        emailVerified: z.boolean(),
-      }),
-    )
+    .output(authUserSchema)
     .query(({ ctx }) => ctx.user),
 });

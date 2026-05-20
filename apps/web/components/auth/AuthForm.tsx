@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { setAuthSession, setPendingSignup } from "~/lib/auth-session";
@@ -10,12 +10,14 @@ import { trpc } from "~/trpc/client";
 
 export function AuthForm({ type }: { type: "login" | "signup" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const isLogin = type === "login";
+  const nextPath = searchParams.get("next") || "/";
   const title = isLogin ? "Welcome back" : "Create an account";
   const subtitle = isLogin
     ? "Enter your details to access your account."
@@ -54,12 +56,12 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
       toast.success("Signed in with Google");
       url.searchParams.delete("auth");
       window.history.replaceState({}, "", url.toString());
-      router.push("/");
+      router.push(nextPath);
       router.refresh();
     } catch {
       toast.error("Invalid Google auth response");
     }
-  }, [router]);
+  }, [nextPath, router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -69,7 +71,7 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
         const result = await signInMutation.mutateAsync({ email, password });
         setAuthSession(result);
         toast.success("Signed in successfully");
-        router.push("/");
+        router.push(nextPath);
         router.refresh();
         return;
       }
@@ -84,7 +86,7 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
   };
 
   const handleGoogleSignIn = async () => {
-    window.location.href = `${authServerBaseUrl}/auth/google/start`;
+    window.location.href = `${authServerBaseUrl}/auth/google/start?next=${encodeURIComponent(nextPath)}`;
   };
 
   return (

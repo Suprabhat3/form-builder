@@ -1,5 +1,5 @@
 import { db, eq, and, gt, sql } from "@repo/database";
-import { usersTable, accountsTable, verificationTable } from "@repo/database/schema";
+import { usersTable, accountsTable, sessionsTable, verificationTable } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
@@ -8,6 +8,7 @@ import type { SignOptions } from "jsonwebtoken";
 import { googleOAuth2Client } from "../clients/google-oauth";
 import { env } from "../env";
 import { sendEmailVerificationCode } from "./email-verification";
+import type { AuthTokensOutput, AuthUser, SignInWithEmailInput, SignUpWithEmailInput } from "./model";
 
 const EMAIL_VERIFICATION_TTL_MS = 10 * 60 * 1000;
 let verificationStorageReady: Promise<void> | null = null;
@@ -17,12 +18,8 @@ type JwtPayload = {
   email: string;
 };
 
-type AuthUser = {
-  id: string;
-  email: string;
-  name: string;
-  image: string | null;
-  emailVerified: boolean;
+type RefreshJwtPayload = JwtPayload & {
+  jti: string;
 };
 
 function sha256(value: string): string {
@@ -72,7 +69,7 @@ function signAccessToken(payload: JwtPayload): string {
   });
 }
 
-function signRefreshToken(payload: JwtPayload): string {
+function signRefreshToken(payload: RefreshJwtPayload): string {
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions["expiresIn"],
   });
@@ -80,6 +77,65 @@ function signRefreshToken(payload: JwtPayload): string {
 
 export function verifyAccessToken(token: string): JwtPayload {
   return jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
+}
+
+export function verifyRefreshToken(token: string): RefreshJwtPayload {
+  return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshJwtPayload;
+}
+
+function getTokenExpiryDate(token: string): Date {
+  const decoded = jwt.decode(token);
+  if (!decoded || typeof decoded === "string" || typeof decoded.exp !== "number") {
+    throw new Error("Invalid token expiry");
+  }
+
+  return new Date(decoded.exp * 1000);
+}
+
+async function persistRefreshSession(userId: string, refreshToken: string): Promise<void> {
+  await db.insert(sessionsTable).values({
+    userId,
+    token: sha256(refreshToken),
+    expiresAt: getTokenExpiryDate(refreshToken),
+  });
+}
+
+async function revokeRefreshSession(refreshToken: string): Promise<void> {
+  await db.delete(sessionsTable).where(eq(sessionsTable.token, sha256(refreshToken)));
+}
+
+async function findActiveRefreshSession(refreshToken: string) {
+  const now = new Date();
+  const rows = await db
+    .select({
+      id: sessionsTable.id,
+      userId: sessionsTable.userId,
+      expiresAt: sessionsTable.expiresAt,
+    })
+    .from(sessionsTable)
+    .where(and(eq(sessionsTable.token, sha256(refreshToken)), gt(sessionsTable.expiresAt, now)))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+async function issueAuthTokensForUser(user: AuthUser): Promise<AuthTokensOutput> {
+  const accessPayload: JwtPayload = { sub: user.id, email: user.email };
+  const refreshPayload: RefreshJwtPayload = {
+    sub: user.id,
+    email: user.email,
+    jti: crypto.randomUUID(),
+  };
+
+  const accessToken = signAccessToken(accessPayload);
+  const refreshToken = signRefreshToken(refreshPayload);
+  await persistRefreshSession(user.id, refreshToken);
+
+  return {
+    accessToken,
+    refreshToken,
+    user,
+  };
 }
 
 async function upsertEmailVerificationToken(email: string, otp: string): Promise<void> {
@@ -170,12 +226,7 @@ export class AuthService {
     if (!isValid) throw new Error("Invalid or expired verification code");
   }
 
-  public async signUpWithEmail(input: {
-    name: string;
-    email: string;
-    password: string;
-    otp: string;
-  }): Promise<{ accessToken: string; refreshToken: string; user: AuthUser }> {
+  public async signUpWithEmail(input: SignUpWithEmailInput): Promise<AuthTokensOutput> {
     const normalizedEmail = input.email.toLowerCase();
     const isValidOtp = await consumeEmailVerificationToken(normalizedEmail, input.otp);
     if (!isValidOtp) throw new Error("Invalid or expired verification code");
@@ -209,18 +260,10 @@ export class AuthService {
       passwordHash,
     });
 
-    const payload: JwtPayload = { sub: user.id, email: user.email };
-    return {
-      accessToken: signAccessToken(payload),
-      refreshToken: signRefreshToken(payload),
-      user,
-    };
+    return issueAuthTokensForUser(user);
   }
 
-  public async signInWithEmail(input: {
-    email: string;
-    password: string;
-  }): Promise<{ accessToken: string; refreshToken: string; user: AuthUser }> {
+  public async signInWithEmail(input: SignInWithEmailInput): Promise<AuthTokensOutput> {
     const normalizedEmail = input.email.toLowerCase();
     const user = await findUserByEmail(normalizedEmail);
     if (!user) throw new Error("Invalid credentials");
@@ -243,19 +286,10 @@ export class AuthService {
 
     if (!user.emailVerified) throw new Error("Email is not verified");
 
-    const payload: JwtPayload = { sub: user.id, email: user.email };
-    return {
-      accessToken: signAccessToken(payload),
-      refreshToken: signRefreshToken(payload),
-      user,
-    };
+    return issueAuthTokensForUser(user);
   }
 
-  public async signInWithGoogleAuthCode(code: string): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    user: AuthUser;
-  }> {
+  public async signInWithGoogleAuthCode(code: string): Promise<AuthTokensOutput> {
     const tokenResponse = await googleOAuth2Client.getToken(code);
     const idToken = tokenResponse.tokens.id_token;
     if (!idToken) throw new Error("Google ID token not found");
@@ -303,12 +337,7 @@ export class AuthService {
       });
     }
 
-    const jwtPayload: JwtPayload = { sub: user.id, email: user.email };
-    return {
-      accessToken: signAccessToken(jwtPayload),
-      refreshToken: signRefreshToken(jwtPayload),
-      user,
-    };
+    return issueAuthTokensForUser(user);
   }
 
   public async getCurrentUserFromToken(token: string): Promise<AuthUser | null> {
@@ -330,6 +359,46 @@ export class AuthService {
       logger.warn("Invalid access token", { error });
       return null;
     }
+  }
+
+  public async refreshSession(refreshToken: string): Promise<AuthTokensOutput> {
+    let payload: RefreshJwtPayload;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch {
+      throw new Error("Invalid refresh token");
+    }
+
+    const activeSession = await findActiveRefreshSession(refreshToken);
+    if (!activeSession) {
+      throw new Error("Refresh session expired or revoked");
+    }
+
+    if (activeSession.userId !== payload.sub) {
+      throw new Error("Refresh token does not match session");
+    }
+
+    const user = await db
+      .select({
+        id: usersTable.id,
+        email: usersTable.email,
+        name: usersTable.name,
+        image: usersTable.image,
+        emailVerified: usersTable.emailVerified,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, payload.sub))
+      .limit(1);
+
+    const foundUser = user[0];
+    if (!foundUser) throw new Error("User not found");
+
+    await revokeRefreshSession(refreshToken);
+    return issueAuthTokensForUser(foundUser);
+  }
+
+  public async signOut(refreshToken: string): Promise<void> {
+    await revokeRefreshSession(refreshToken);
   }
 }
 

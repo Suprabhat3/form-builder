@@ -3,10 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { clearAuthSession, getAuthUser, onAuthChange, type AuthUser } from "~/lib/auth-session";
+import { trpc } from "~/trpc/client";
+import { clearAuthSession, getAuthUser, getRefreshToken, onAuthChange, type AuthUser } from "~/lib/auth-session";
 
 export function TopNavBar() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const signOutMutation = trpc.auth.signOut.useMutation();
 
   useEffect(() => {
     const sync = () => setAuthUser(getAuthUser());
@@ -58,7 +60,16 @@ export function TopNavBar() {
               </span>
               <button
                 type="button"
-                onClick={() => clearAuthSession()}
+                onClick={async () => {
+                  try {
+                    const refreshToken = getRefreshToken();
+                    if (refreshToken) {
+                      await signOutMutation.mutateAsync({ refreshToken });
+                    }
+                  } finally {
+                    clearAuthSession();
+                  }
+                }}
                 className="text-label-md font-label-md text-on-surface-variant hover:text-primary transition-colors"
               >
                 Logout
