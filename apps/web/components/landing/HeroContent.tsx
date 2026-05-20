@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function HeroContent() {
   return (
     <div className="flex flex-col items-start text-left z-20">
@@ -20,9 +22,9 @@ export function HeroContent() {
       </p>
 
       <div className="flex flex-col sm:flex-row items-center gap-[16px] mb-[48px] w-full sm:w-auto">
-        <button className="w-full sm:w-auto font-bold bg-primary text-on-primary px-[32px] py-[16px] rounded-lg shadow-[0_8px_20px_0_rgba(70,72,212,0.3)] hover:-translate-y-0.5 transition-all duration-200">
+        <Link href="/dashboard" className="w-full sm:w-auto font-bold bg-primary text-on-primary px-[32px] py-[16px] rounded-lg shadow-[0_8px_20px_0_rgba(70,72,212,0.3)] hover:-translate-y-0.5 transition-all duration-200 text-center inline-block">
           Start Building Free
-        </button>
+        </Link>
         <button className="w-full sm:w-auto font-bold bg-surface-container-lowest border border-outline-variant/50 text-on-surface px-[32px] py-[16px] rounded-lg hover:border-primary hover:text-primary transition-all duration-200 flex items-center justify-center gap-[10px]">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"></circle>

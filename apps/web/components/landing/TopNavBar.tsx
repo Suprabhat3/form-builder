@@ -58,6 +58,12 @@ export function TopNavBar() {
               <span className="hidden md:block text-label-md font-label-md text-on-surface-variant">
                 {authUser.name}
               </span>
+              <Link
+                href="/dashboard"
+                className="text-label-md font-label-md text-on-surface-variant hover:text-primary transition-colors"
+              >
+                Dashboard
+              </Link>
               <button
                 type="button"
                 onClick={async () => {

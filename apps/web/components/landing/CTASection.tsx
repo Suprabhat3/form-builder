@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function CTASection() {
   return (
     <section className="max-w-5xl mx-auto px-margin py-xl mb-[120px]">
@@ -13,9 +15,9 @@ export function CTASection() {
           fighting generic templates and start building beautiful experiences.
         </p>
         <div className="flex flex-col sm:flex-row justify-center items-center gap-md relative z-10">
-          <button className="w-full sm:w-auto text-label-md font-label-md bg-gradient-to-r from-primary to-primary-container text-on-primary px-xl py-sm rounded-lg shadow-[0_4px_14px_0_rgba(70,72,212,0.39)] hover:shadow-[0_6px_20px_rgba(70,72,212,0.23)] hover:-translate-y-0.5 transition-all duration-200">
+          <Link href="/dashboard" className="w-full sm:w-auto text-label-md font-label-md bg-gradient-to-r from-primary to-primary-container text-on-primary px-xl py-sm rounded-lg shadow-[0_4px_14px_0_rgba(70,72,212,0.39)] hover:shadow-[0_6px_20px_rgba(70,72,212,0.23)] hover:-translate-y-0.5 transition-all duration-200 inline-block text-center">
             Create Your First Form
-          </button>
+          </Link>
           <span className="text-label-sm font-label-sm text-on-surface-variant">
             No credit card required.
           </span>
