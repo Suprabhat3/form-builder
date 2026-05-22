@@ -14,6 +14,7 @@ import { ArrowLeftIcon, PlusIcon, Trash2Icon, GripVerticalIcon, SaveIcon, Pencil
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { toast } from "sonner";
 import { Textarea } from "~/components/ui/textarea";
+import { FormRenderer } from "~/components/forms/FormRenderer";
 
 export default function BuilderPage({ params }: { params: Promise<{ formId: string }> }) {
   return (
@@ -50,6 +51,11 @@ function BuilderContent({ params }: { params: Promise<{ formId: string }> }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {form.status === "PUBLISHED" && (
+            <Button variant="outline" size="sm" onClick={() => window.open(`/f/${form.slug}`, "_blank")}>
+              View Live Form
+            </Button>
+          )}
           {/* We'll handle save dynamically, but adding a save button for layout completeness */}
           <Button disabled variant="outline" size="sm" className="gap-2">
             <SaveIcon className="w-4 h-4" /> Saved
@@ -62,6 +68,7 @@ function BuilderContent({ params }: { params: Promise<{ formId: string }> }) {
           <TabsList className="mb-6">
             <TabsTrigger value="fields">Fields</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="preview">Live Preview</TabsTrigger>
           </TabsList>
           
           <TabsContent value="fields">
@@ -70,6 +77,12 @@ function BuilderContent({ params }: { params: Promise<{ formId: string }> }) {
           
           <TabsContent value="settings">
             <FormSettings form={form} />
+          </TabsContent>
+
+          <TabsContent value="preview">
+            <div className="border rounded-2xl overflow-hidden shadow-inner bg-slate-900/5 min-h-[500px]">
+              <FormRenderer form={form} isPreview={true} />
+            </div>
           </TabsContent>
         </Tabs>
       </main>

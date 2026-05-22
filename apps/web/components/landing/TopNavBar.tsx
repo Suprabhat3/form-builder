@@ -41,7 +41,7 @@ export function TopNavBar() {
           </Link>
           <Link
             className="text-label-md font-label-md text-on-surface-variant hover:text-primary transition-colors"
-            href="#"
+            href="/templates"
           >
             Templates
           </Link>

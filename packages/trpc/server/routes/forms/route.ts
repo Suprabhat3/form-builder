@@ -3,6 +3,8 @@ import { and, asc, count, desc, eq } from "../../../../database";
 import {
   formFieldsTable,
   formResponsesTable,
+  formResponseItemsTable,
+  analyticsEventsTable,
   formsTable,
   fieldTypeEnum,
   formStatusEnum,
@@ -22,7 +24,7 @@ import {
   updateFormInputSchema,
 } from "@repo/services/forms/model";
 import { z, zodUndefinedModel } from "../../schema";
-import { protectedProcedure, router } from "../../trpc";
+import { protectedProcedure, publicProcedure, router } from "../../trpc";
 import { db } from "../../../../database";
 
 function slugify(input: string): string {
@@ -79,7 +81,7 @@ function fieldKeyFromType(type: (typeof fieldTypeEnum.enumValues)[number], idx: 
 }
 
 export const formRouter = router({
-  getThemeCatalog: protectedProcedure
+  getThemeCatalog: publicProcedure
     .input(zodUndefinedModel)
     .output(
       z.array(
@@ -453,5 +455,170 @@ export const formRouter = router({
 
       await db.update(formsTable).set({ updatedAt: new Date() }).where(eq(formsTable.id, input.formId));
       return { success: true };
+    }),
+
+  getBySlug: publicProcedure
+    .input(z.object({ slug: z.string() }))
+    .output(
+      z.object({
+        id: z.string().uuid(),
+        title: z.string(),
+        description: z.string().nullable(),
+        status: formStatusSchema,
+        visibility: formVisibilitySchema,
+        themeKey: formThemeKeySchema,
+        fields: z.array(
+          z.object({
+            id: z.string().uuid(),
+            key: z.string(),
+            type: z.string(),
+            label: z.string(),
+            helperText: z.string().nullable(),
+            placeholder: z.string().nullable(),
+            required: z.boolean(),
+            position: z.number().int(),
+            config: z.record(z.string(), z.unknown()),
+          }),
+        ),
+      }),
+    )
+    .query(async ({ input }) => {
+      const form = await db
+        .select({
+          id: formsTable.id,
+          title: formsTable.title,
+          description: formsTable.description,
+          slug: formsTable.slug,
+          status: formsTable.status,
+          visibility: formsTable.visibility,
+          themeKey: formsTable.themeKey,
+        })
+        .from(formsTable)
+        .where(eq(formsTable.slug, input.slug))
+        .limit(1);
+
+      if (!form[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Form not found" });
+      }
+
+      if (form[0].status !== "PUBLISHED") {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "This form is not currently published" });
+      }
+
+      const fields = await db
+        .select({
+          id: formFieldsTable.id,
+          key: formFieldsTable.key,
+          type: formFieldsTable.type,
+          label: formFieldsTable.label,
+          helperText: formFieldsTable.helperText,
+          placeholder: formFieldsTable.placeholder,
+          required: formFieldsTable.required,
+          position: formFieldsTable.position,
+          config: formFieldsTable.config,
+        })
+        .from(formFieldsTable)
+        .where(eq(formFieldsTable.formId, form[0].id))
+        .orderBy(asc(formFieldsTable.position), asc(formFieldsTable.createdAt));
+
+      return {
+        ...form[0],
+        status: form[0].status as z.infer<typeof formStatusSchema>,
+        visibility: form[0].visibility as z.infer<typeof formVisibilitySchema>,
+        themeKey: form[0].themeKey as z.infer<typeof formThemeKeySchema>,
+        fields: fields.map(f => ({
+          ...f,
+          type: f.type,
+          config: (f.config as Record<string, unknown>) ?? {},
+        })),
+      };
+    }),
+
+  submitResponse: publicProcedure
+    .input(
+      z.object({
+        formId: z.string().uuid(),
+        respondentEmail: z.string().email().optional().nullable(),
+        respondentName: z.string().optional().nullable(),
+        answers: z.array(
+          z.object({
+            fieldId: z.string().uuid(),
+            fieldKey: z.string(),
+            value: z.unknown(),
+          }),
+        ),
+      }),
+    )
+    .output(z.object({ success: z.boolean(), responseId: z.string().uuid() }))
+    .mutation(async ({ input }) => {
+      const form = await db
+        .select({ id: formsTable.id, status: formsTable.status })
+        .from(formsTable)
+        .where(eq(formsTable.id, input.formId))
+        .limit(1);
+
+      if (!form[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Form not found" });
+      }
+
+      if (form[0].status !== "PUBLISHED") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Only published forms can accept submissions" });
+      }
+
+      const fields = await db
+        .select({
+          id: formFieldsTable.id,
+          key: formFieldsTable.key,
+          type: formFieldsTable.type,
+          required: formFieldsTable.required,
+        })
+        .from(formFieldsTable)
+        .where(eq(formFieldsTable.formId, input.formId));
+
+      const fieldMap = new Map(fields.map(f => [f.id, f]));
+      
+      for (const field of fields) {
+        if (field.required) {
+          const answer = input.answers.find(a => a.fieldId === field.id);
+          if (!answer || answer.value === undefined || answer.value === null || answer.value === "") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Field "${field.key}" is required.`,
+            });
+          }
+        }
+      }
+
+      const headerInserted = await db
+        .insert(formResponsesTable)
+        .values({
+          formId: input.formId,
+          respondentEmail: input.respondentEmail ?? null,
+          respondentName: input.respondentName ?? null,
+          submitterUserAgent: null,
+        })
+        .returning({ id: formResponsesTable.id });
+
+      const responseId = headerInserted[0]!.id;
+
+      if (input.answers.length > 0) {
+        await db.insert(formResponseItemsTable).values(
+          input.answers.map(ans => ({
+            responseId,
+            fieldId: ans.fieldId,
+            fieldKey: ans.fieldKey,
+            value: ans.value ?? null,
+          })),
+        );
+      }
+
+      await db.insert(analyticsEventsTable).values({
+        formId: input.formId,
+        responseId,
+        eventType: "SUBMIT",
+        metadata: {},
+      });
+
+      return { success: true, responseId };
     }),
 });

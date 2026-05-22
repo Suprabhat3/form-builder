@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Orbitron:wght@500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,400&family=Press+Start+2P&family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -248,4 +250,418 @@
     background-image: radial-gradient(circle at 2px 2px, rgba(199, 196, 215, 0.3) 1px, transparent 0);
     background-size: 24px 24px;
   }
+}
+
+/* ==========================================
+   Curated Form Builder Themes System
+   ========================================== */
+
+/* Core Theme Container */
+.theme-container {
+  font-family: var(--theme-font, inherit);
+  background-color: var(--theme-bg);
+  background-image: var(--theme-bg-img, none);
+  background-size: var(--theme-bg-size, auto);
+  color: var(--theme-text);
+  min-height: 100vh;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Scoped Theme Element Styles */
+.theme-container .theme-title {
+  font-family: var(--theme-title-font, var(--theme-font, inherit));
+  color: var(--theme-title-color, var(--theme-text));
+  letter-spacing: var(--theme-title-spacing, normal);
+  text-transform: var(--theme-title-transform, none);
+}
+
+.theme-container .theme-card {
+  background-color: var(--theme-card-bg);
+  border: var(--theme-border-style, 1px solid var(--theme-border));
+  border-radius: var(--theme-radius, 8px);
+  box-shadow: var(--theme-shadow, none);
+  color: var(--theme-text);
+  backdrop-filter: var(--theme-backdrop-blur, none);
+  -webkit-backdrop-filter: var(--theme-backdrop-blur, none);
+  transition: all 0.3s ease;
+}
+
+.theme-container .theme-label {
+  font-family: var(--theme-font, inherit);
+  color: var(--theme-label-color, var(--theme-text));
+  font-weight: var(--theme-label-weight, 600);
+  font-size: var(--theme-label-size, 14px);
+  letter-spacing: var(--theme-label-spacing, normal);
+  text-transform: var(--theme-label-transform, none);
+}
+
+.theme-container .theme-input {
+  background-color: var(--theme-input-bg);
+  border: var(--theme-input-border-style, 1px solid var(--theme-border));
+  border-radius: var(--theme-input-radius, var(--theme-radius, 8px));
+  color: var(--theme-input-text, var(--theme-text));
+  font-family: var(--theme-font, inherit);
+  box-shadow: var(--theme-input-shadow, none);
+  transition: all 0.2s ease;
+}
+
+.theme-container .theme-input:focus {
+  outline: none;
+  border-color: var(--theme-primary);
+  box-shadow: var(--theme-focus-ring);
+  background-color: var(--theme-input-bg-focus, var(--theme-input-bg));
+}
+
+.theme-container .theme-button {
+  background: var(--theme-button-bg, var(--theme-primary));
+  color: var(--theme-primary-foreground, #ffffff);
+  border-radius: var(--theme-button-radius, var(--theme-radius, 8px));
+  border: var(--theme-button-border, none);
+  box-shadow: var(--theme-button-shadow, none);
+  font-family: var(--theme-font, inherit);
+  font-weight: 700;
+  letter-spacing: var(--theme-button-spacing, normal);
+  text-transform: var(--theme-button-transform, none);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.theme-container .theme-button:hover:not(:disabled) {
+  background: var(--theme-button-hover-bg, var(--theme-primary-hover));
+  color: var(--theme-button-hover-color, var(--theme-primary-foreground));
+  transform: var(--theme-button-hover-transform, translateY(-2px));
+  box-shadow: var(--theme-button-hover-shadow, none);
+  border-color: var(--theme-button-hover-border, var(--theme-border));
+}
+
+.theme-container .theme-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Helper Text and Muted copy */
+.theme-container .theme-muted {
+  color: var(--theme-text-muted);
+  font-size: 13px;
+}
+
+/* Option Cards (Single/Multi Select Options) */
+.theme-container .theme-option-card {
+  background-color: var(--theme-option-bg, var(--theme-input-bg));
+  border: 1px solid var(--theme-border);
+  border-radius: var(--theme-radius, 8px);
+  color: var(--theme-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.theme-container .theme-option-card:hover {
+  border-color: var(--theme-primary);
+  background-color: var(--theme-option-hover-bg, var(--theme-option-bg));
+}
+.theme-container .theme-option-card.selected {
+  background-color: var(--theme-option-selected-bg, var(--theme-primary));
+  border-color: var(--theme-primary);
+  color: var(--theme-option-selected-text, var(--theme-primary-foreground));
+  box-shadow: var(--theme-option-selected-shadow, none);
+}
+
+/* --- Theme 1: Movie Noir (movie-noir) --- */
+.theme-movie-noir {
+  --theme-font: 'Playfair Display', Georgia, serif;
+  --theme-bg: #0a0a0c;
+  --theme-bg-img: radial-gradient(circle at center, rgba(186, 26, 26, 0.08) 0%, transparent 70%), 
+                  repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.01) 0px, rgba(255, 255, 255, 0.01) 1px, transparent 1px, transparent 2px);
+  --theme-card-bg: #ffffff;
+  --theme-text: #111116;
+  --theme-text-muted: #666675;
+  --theme-primary: #ba1a1a;
+  --theme-primary-hover: #9c1010;
+  --theme-primary-foreground: #ffffff;
+  --theme-border: #111116;
+  --theme-radius: 4px;
+  --theme-shadow: 6px 6px 0px #111116;
+  --theme-focus-ring: 0 0 0 3px rgba(186, 26, 26, 0.3);
+  --theme-input-bg: #fcfcfd;
+  
+  --theme-title-font: 'Playfair Display', serif;
+  --theme-title-color: #ffffff;
+  
+  --theme-button-border: 1px solid #111116;
+  --theme-button-shadow: 4px 4px 0px #111116;
+  --theme-button-hover-shadow: 2px 2px 0px #111116;
+  --theme-button-hover-transform: translate(2px, 2px);
+  
+  --theme-option-bg: #ffffff;
+  --theme-option-hover-bg: #f8f9fa;
+  --theme-option-selected-bg: #111116;
+  --theme-option-selected-text: #ffffff;
+}
+
+/* Movie Noir container customization */
+.theme-movie-noir .theme-title-container {
+  border-bottom: 2px solid #ba1a1a;
+  padding-bottom: 8px;
+}
+.theme-movie-noir .theme-label {
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+/* --- Theme 2: Anime Neon (anime-neon) --- */
+.theme-anime-neon {
+  --theme-font: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --theme-title-font: 'Orbitron', 'Space Grotesk', sans-serif;
+  --theme-bg: #0b0314;
+  --theme-bg-img: radial-gradient(circle at 15% 15%, rgba(255, 0, 127, 0.15) 0%, transparent 50%),
+                  radial-gradient(circle at 85% 85%, rgba(0, 240, 255, 0.15) 0%, transparent 50%);
+  --theme-card-bg: rgba(20, 10, 35, 0.6);
+  --theme-text: #f3f0f7;
+  --theme-text-muted: #a39bb4;
+  --theme-primary: #ff007f;
+  --theme-primary-hover: #00f0ff;
+  --theme-primary-foreground: #ffffff;
+  --theme-border: rgba(255, 0, 127, 0.4);
+  --theme-border-style: 1px solid rgba(255, 0, 127, 0.4);
+  --theme-radius: 16px;
+  --theme-backdrop-blur: blur(12px);
+  --theme-shadow: 0 0 20px rgba(255, 0, 127, 0.25), inset 0 0 10px rgba(255, 0, 127, 0.1);
+  --theme-focus-ring: 0 0 15px rgba(0, 240, 255, 0.6);
+  --theme-input-bg: rgba(10, 5, 20, 0.7);
+  --theme-input-text: #ffffff;
+  
+  --theme-title-color: #00f0ff;
+  --theme-title-spacing: 0.05em;
+  
+  --theme-button-bg: linear-gradient(135deg, #ff007f 0%, #7b00ff 100%);
+  --theme-button-hover-bg: linear-gradient(135deg, #00f0ff 0%, #ff007f 100%);
+  --theme-button-hover-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+  
+  --theme-option-bg: rgba(20, 10, 35, 0.8);
+  --theme-option-selected-bg: #ff007f;
+  --theme-option-selected-shadow: 0 0 12px rgba(255, 0, 127, 0.5);
+}
+.theme-anime-neon .theme-input:focus {
+  border-color: #00f0ff;
+}
+
+/* --- Theme 3: Retro Arcade (retro-arcade) --- */
+.theme-retro-arcade {
+  --theme-font: 'Fira Code', monospace;
+  --theme-title-font: 'Press Start 2P', monospace;
+  --theme-bg: #0d0d15;
+  --theme-bg-img: linear-gradient(rgba(18, 18, 30, 0.95), rgba(18, 18, 30, 0.95)), 
+                  radial-gradient(circle, rgba(243, 156, 18, 0.1) 1px, transparent 1px);
+  --theme-bg-size: 20px 20px;
+  --theme-card-bg: #151525;
+  --theme-text: #39ff14;
+  --theme-text-muted: #88c880;
+  --theme-primary: #f39c12;
+  --theme-primary-hover: #e67e22;
+  --theme-primary-foreground: #000000;
+  --theme-border: #39ff14;
+  --theme-border-style: 3px solid #39ff14;
+  --theme-radius: 0px;
+  --theme-shadow: 8px 8px 0px #f39c12;
+  --theme-focus-ring: 0 0 0 4px #f39c12;
+  --theme-input-bg: #000000;
+  
+  --theme-title-color: #f39c12;
+  --theme-title-spacing: -0.05em;
+  
+  --theme-button-bg: #39ff14;
+  --theme-button-hover-bg: #f39c12;
+  --theme-button-hover-color: #000000;
+  --theme-button-border: 3px solid #000000;
+  --theme-button-shadow: 4px 4px 0px #f39c12;
+  --theme-button-hover-shadow: 2px 2px 0px #f39c12;
+  --theme-button-hover-transform: translate(2px, 2px);
+  
+  --theme-option-bg: #000000;
+  --theme-option-selected-bg: #f39c12;
+  --theme-option-selected-text: #000000;
+}
+.theme-retro-arcade .theme-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #39ff14;
+  margin-bottom: 4px;
+}
+.theme-retro-arcade .theme-title {
+  text-shadow: 3px 3px 0px #ba1a1a;
+  line-height: 1.6;
+}
+
+/* --- Theme 4: Silicon Minimal (silicon-minimal) --- */
+.theme-silicon-minimal {
+  --theme-font: 'Plus Jakarta Sans', sans-serif;
+  --theme-bg: #f8fafc;
+  --theme-bg-img: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+  --theme-bg-size: 24px 24px;
+  --theme-card-bg: #ffffff;
+  --theme-text: #0f172a;
+  --theme-text-muted: #64748b;
+  --theme-primary: #0f62fe;
+  --theme-primary-hover: #0353e9;
+  --theme-primary-foreground: #ffffff;
+  --theme-border: #e2e8f0;
+  --theme-radius: 8px;
+  --theme-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  --theme-focus-ring: 0 0 0 4px rgba(15, 98, 254, 0.15);
+  --theme-input-bg: #ffffff;
+  
+  --theme-button-radius: 6px;
+  --theme-button-shadow: 0 2px 4px rgba(15, 98, 254, 0.1);
+  --theme-button-hover-shadow: 0 4px 12px rgba(15, 98, 254, 0.2);
+  
+  --theme-option-hover-bg: #f1f5f9;
+  --theme-option-selected-bg: #0f62fe;
+}
+
+/* --- Theme 5: Terminal Hacker (terminal-hacker) --- */
+.theme-terminal-hacker {
+  --theme-font: 'Fira Code', monospace;
+  --theme-bg: #020202;
+  --theme-bg-img: linear-gradient(rgba(18, 18, 18, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  --theme-bg-size: 100% 4px, 6px 100%;
+  --theme-card-bg: #050a05;
+  --theme-text: #00ff00;
+  --theme-text-muted: #008800;
+  --theme-primary: #00ff00;
+  --theme-primary-hover: #11aa11;
+  --theme-primary-foreground: #000000;
+  --theme-border: #005500;
+  --theme-border-style: 1px solid #005500;
+  --theme-radius: 4px;
+  --theme-shadow: 0 0 10px rgba(0, 255, 0, 0.15);
+  --theme-focus-ring: 0 0 10px rgba(0, 255, 0, 0.5);
+  --theme-input-bg: #000000;
+  
+  --theme-title-color: #00ff00;
+  
+  --theme-button-bg: #00ff00;
+  --theme-button-border: 1px solid #00ff00;
+  --theme-button-hover-bg: #000000;
+  --theme-button-hover-color: #00ff00;
+  
+  --theme-option-bg: #000000;
+  --theme-option-selected-bg: #00ff00;
+  --theme-option-selected-text: #000000;
+}
+.theme-terminal-hacker .theme-label::before {
+  content: "$ ";
+  color: #00ff00;
+}
+.theme-terminal-hacker .theme-title::before {
+  content: "root@hacker:~# ";
+  font-size: 14px;
+  color: #008800;
+  display: block;
+}
+
+/* --- Theme 6: Startup Pitch (startup-pitch) --- */
+.theme-startup-pitch {
+  --theme-font: 'Outfit', sans-serif;
+  --theme-bg: #eef2f6;
+  --theme-bg-img: linear-gradient(135deg, #f5f3ff 0%, #e0e7ff 50%, #dbeafe 100%);
+  --theme-card-bg: #ffffff;
+  --theme-text: #1e1b4b;
+  --theme-text-muted: #6b7280;
+  --theme-primary: #4f46e5;
+  --theme-primary-hover: #4338ca;
+  --theme-primary-foreground: #ffffff;
+  --theme-border: #e0e7ff;
+  --theme-radius: 20px;
+  --theme-shadow: 0 10px 30px rgba(79, 70, 229, 0.08);
+  --theme-focus-ring: 0 0 0 4px rgba(79, 70, 229, 0.2);
+  --theme-input-bg: #ffffff;
+  --theme-input-radius: 12px;
+  
+  --theme-title-font: 'Outfit', sans-serif;
+  --theme-title-color: #312e81;
+  
+  --theme-button-bg: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --theme-button-hover-bg: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+  --theme-button-radius: 12px;
+  --theme-button-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+  
+  --theme-option-hover-bg: #f5f3ff;
+  --theme-option-selected-bg: #4f46e5;
+}
+
+/* --- Theme 7: Hackathon Rush (hackathon-rush) --- */
+.theme-hackathon-rush {
+  --theme-font: 'Space Grotesk', sans-serif;
+  --theme-bg: #facc15;
+  --theme-bg-img: linear-gradient(rgba(0, 0, 0, 0.04) 2px, transparent 2px), linear-gradient(90deg, rgba(0, 0, 0, 0.04) 2px, transparent 2px);
+  --theme-bg-size: 28px 28px;
+  --theme-card-bg: #ffffff;
+  --theme-text: #000000;
+  --theme-text-muted: #4b5563;
+  --theme-primary: #000000;
+  --theme-primary-hover: #ffffff;
+  --theme-primary-foreground: #ffffff;
+  --theme-border: #000000;
+  --theme-border-style: 3px solid #000000;
+  --theme-radius: 0px;
+  --theme-shadow: 8px 8px 0px #000000;
+  --theme-focus-ring: 0 0 0 3px #000000;
+  --theme-input-bg: #ffffff;
+  
+  --theme-title-font: 'Space Grotesk', sans-serif;
+  --theme-title-color: #000000;
+  --theme-title-transform: uppercase;
+  --theme-title-spacing: -0.02em;
+  
+  --theme-button-bg: #000000;
+  --theme-button-hover-bg: #ffffff;
+  --theme-button-hover-color: #000000;
+  --theme-button-border: 3px solid #000000;
+  --theme-button-shadow: 6px 6px 0px #000000;
+  --theme-button-hover-shadow: 0px 0px 0px #000000;
+  --theme-button-hover-transform: translate(6px, 6px);
+  
+  --theme-option-bg: #ffffff;
+  --theme-option-selected-bg: #000000;
+  --theme-option-selected-text: #ffffff;
+  --theme-option-selected-shadow: 4px 4px 0px #000000;
+}
+.theme-hackathon-rush .theme-card {
+  transform: rotate(-0.5deg);
+}
+
+/* --- Theme 8: Community Warm (community-warm) --- */
+.theme-community-warm {
+  --theme-font: 'Lora', serif;
+  --theme-bg: #FAF6F0;
+  --theme-bg-img: radial-gradient(circle at 10% 30%, rgba(46, 125, 50, 0.04) 0%, transparent 60%),
+                  radial-gradient(circle at 90% 70%, rgba(216, 67, 21, 0.04) 0%, transparent 60%);
+  --theme-card-bg: #ffffff;
+  --theme-text: #3c2f2f;
+  --theme-text-muted: #726262;
+  --theme-primary: #2e7d32;
+  --theme-primary-hover: #1b5e20;
+  --theme-primary-foreground: #ffffff;
+  --theme-border: #e6dfd5;
+  --theme-radius: 12px;
+  --theme-shadow: 0 8px 24px rgba(60, 47, 47, 0.03), 0 2px 4px rgba(60, 47, 47, 0.02);
+  --theme-focus-ring: 0 0 0 4px rgba(46, 125, 50, 0.18);
+  --theme-input-bg: #FAF6F0;
+  
+  --theme-title-font: 'Lora', serif;
+  --theme-title-color: #1b5e20;
+  
+  --theme-button-bg: #2e7d32;
+  --theme-button-hover-bg: #1b5e20;
+  --theme-button-radius: 30px;
+  --theme-button-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+  
+  --theme-option-bg: #FAF6F0;
+  --theme-option-hover-bg: #f5ede1;
+  --theme-option-selected-bg: #2e7d32;
+  --theme-option-selected-shadow: 0 4px 8px rgba(46, 125, 50, 0.1);
+}
+.theme-community-warm .theme-card {
+  border-bottom: 4px solid #2e7d32;
 }
