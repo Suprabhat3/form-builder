@@ -88,12 +88,12 @@ export function SignupVerificationForm() {
         </Link>
       </nav>
 
-      <main className="flex-grow flex items-center justify-center relative z-10 w-full px-6 sm:px-8">
+      <main className="grow flex items-center justify-center relative z-10 w-full px-6 sm:px-8">
         <div
           className="w-full bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-6 sm:p-10"
           style={{ maxWidth: "480px", minWidth: "320px" }}
         >
-          <div className="mb-8 rounded-lg border border-primary/30 bg-primary/10 p-4 text-sm text-on-surface leading-6 break-words">
+          <div className="mb-8 rounded-lg border border-primary/30 bg-primary/10 p-4 text-sm text-on-surface leading-6 wrap-break-word">
             Verification code has been sent to{" "}
             <strong className="break-all">{pending?.email ?? "your email"}</strong>.
           </div>
@@ -117,7 +117,7 @@ export function SignupVerificationForm() {
             <button
               type="submit"
               disabled={signUpMutation.isPending}
-              className="w-full font-bold bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-lg shadow-[0_4px_14px_0_rgba(70,72,212,0.39)] hover:shadow-[0_6px_20px_rgba(70,72,212,0.23)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0"
+              className="w-full font-bold bg-linear-to-r from-primary to-primary-container text-on-primary rounded-lg shadow-[0_4px_14px_0_rgba(70,72,212,0.39)] hover:shadow-[0_6px_20px_rgba(70,72,212,0.23)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:hover:translate-y-0"
               style={{ padding: "14px 40px", fontSize: "14px" }}
             >
               {signUpMutation.isPending ? "Verifying..." : "Create Account"}

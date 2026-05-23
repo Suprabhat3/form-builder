@@ -80,7 +80,7 @@ function BuilderContent({ params }: { params: Promise<{ formId: string }> }) {
           </TabsContent>
 
           <TabsContent value="preview">
-            <div className="border rounded-2xl overflow-hidden shadow-inner bg-slate-900/5 min-h-[500px]">
+            <div className="border rounded-2xl overflow-hidden shadow-inner bg-slate-900/5 min-h-125">
               <FormRenderer form={form} isPreview={true} />
             </div>
           </TabsContent>

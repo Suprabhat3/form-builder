@@ -14,15 +14,34 @@ import {
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { PlusIcon, SettingsIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon } from "lucide-react";
+import { PlusIcon, SettingsIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, ExternalLinkIcon, Share2Icon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { toast } from "sonner";
 
+const themeMetadata: Record<string, { bg: string; primary: string; secondary: string; desc: string }> = {
+  "movie-noir": { bg: "#0a0a0c", primary: "#ba1a1a", secondary: "#111116", desc: "Film noir grain backdrop with striking contrast shadow drama" },
+  "anime-neon": { bg: "#0b0314", primary: "#ff007f", secondary: "#00f0ff", desc: "Cyberpunk Tokyo neon halos and glowing glassmorphism panels" },
+  "retro-arcade": { bg: "#0d0d15", primary: "#39ff14", secondary: "#f39c12", desc: "80s monospaced console, scanlines, and bouncy trophy icons" },
+  "silicon-minimal": { bg: "#f8fafc", primary: "#0f62fe", secondary: "#64748b", desc: "Clean modern SaaS matrix background with soft micro-shadows" },
+  "terminal-hacker": { bg: "#020202", primary: "#00ff00", secondary: "#008800", desc: "Phosphor green-on-black terminal system console prompt layout" },
+  "startup-pitch": { bg: "#f5f3ff", primary: "#4f46e5", secondary: "#312e81", desc: "Rounded curve templates with clean violet gradients and pills" },
+  "hackathon-rush": { bg: "#facc15", primary: "#000000", secondary: "#ffffff", desc: "High voltage brutalist neon-yellow with thick offset borders" },
+  "community-warm": { bg: "#FAF6F0", primary: "#2e7d32", secondary: "#FAF6F0", desc: "Warm organic ivory bases, forest greens and cozy heart accents" },
+};
+
 export default function DashboardPage() {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [prefillThemeKey, setPrefillThemeKey] = useState<string | null>(null);
+
+  const handleThemeSelect = (themeKey: string) => {
+    setPrefillThemeKey(themeKey);
+    setCreateOpen(true);
+  };
+
   return (
     <RequireAuth>
       <main className="mx-auto max-w-6xl px-6 py-12">
@@ -33,17 +52,25 @@ export default function DashboardPage() {
               Manage your forms, view responses, and customize settings.
             </p>
           </div>
-          <CreateFormDialog />
+          <CreateFormDialog open={createOpen} onOpenChange={setCreateOpen} defaultThemeKey={prefillThemeKey} />
         </div>
-        
+
+        <ThemeExplorer onSelectTheme={handleThemeSelect} />
         <FormsList />
       </main>
     </RequireAuth>
   );
 }
 
-function CreateFormDialog() {
-  const [open, setOpen] = useState(false);
+function CreateFormDialog({
+  open,
+  onOpenChange,
+  defaultThemeKey,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  defaultThemeKey?: string | null;
+}) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [themeKey, setThemeKey] = useState("movie-noir");
@@ -55,35 +82,29 @@ function CreateFormDialog() {
 
   const { data: themes } = trpc.form.getThemeCatalog.useQuery();
 
-  // Color Swatches Map for visual selection preview
-  const themeMetadata: Record<string, { bg: string; primary: string; secondary: string; desc: string }> = {
-    "movie-noir": { bg: "#0a0a0c", primary: "#ba1a1a", secondary: "#111116", desc: "Film noir grain backdrop with striking contrast shadow drama" },
-    "anime-neon": { bg: "#0b0314", primary: "#ff007f", secondary: "#00f0ff", desc: "Cyberpunk Tokyo neon halos and glowing glassmorphism panels" },
-    "retro-arcade": { bg: "#0d0d15", primary: "#39ff14", secondary: "#f39c12", desc: "80s monospaced console, scanlines, and bouncy trophy icons" },
-    "silicon-minimal": { bg: "#f8fafc", primary: "#0f62fe", secondary: "#64748b", desc: "Clean modern SaaS matrix background with soft micro-shadows" },
-    "terminal-hacker": { bg: "#020202", primary: "#00ff00", secondary: "#008800", desc: "Phosphor green-on-black terminal system console prompt layout" },
-    "startup-pitch": { bg: "#f5f3ff", primary: "#4f46e5", secondary: "#312e81", desc: "Rounded curve templates with clean violet gradients and pills" },
-    "hackathon-rush": { bg: "#facc15", primary: "#000000", secondary: "#ffffff", desc: "High voltage brutalist neon-yellow with thick offset borders" },
-    "community-warm": { bg: "#FAF6F0", primary: "#2e7d32", secondary: "#FAF6F0", desc: "Warm organic ivory bases, forest greens and cozy heart accents" },
-  };
-
   // Deep-linking theme pre-selection
   useEffect(() => {
     if (themeParam && Object.keys(themeMetadata).includes(themeParam)) {
       setThemeKey(themeParam);
-      setOpen(true);
+      onOpenChange(true);
 
       // Instantly clean up query parameter to keep dashboard refresh clean
       const cleanedUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanedUrl);
     }
-  }, [themeParam]);
+  }, [themeParam, onOpenChange]);
+
+  useEffect(() => {
+    if (defaultThemeKey && Object.keys(themeMetadata).includes(defaultThemeKey)) {
+      setThemeKey(defaultThemeKey);
+    }
+  }, [defaultThemeKey]);
   
   const utils = trpc.useUtils();
   const createForm = trpc.form.create.useMutation({
     onSuccess: (data) => {
       toast.success("Form created successfully!");
-      setOpen(false);
+      onOpenChange(false);
       // Reset state fields
       setTitle("");
       setDescription("");
@@ -101,14 +122,14 @@ function CreateFormDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <PlusIcon className="w-4 h-4" />
           Create Form
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-162.5 max-h-[90vh] overflow-y-auto">
         <form onSubmit={onSubmit} className="space-y-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Create New Form</DialogTitle>
@@ -166,7 +187,7 @@ function CreateFormDialog() {
               </div>
 
               {/* Scrollable Visual Theme picker Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[260px] overflow-y-auto pr-1 py-1 border rounded-xl p-3 bg-slate-50/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-65 overflow-y-auto pr-1 py-1 border rounded-xl p-3 bg-slate-50/50">
                 {themes?.map((t) => {
                   const isSelected = themeKey === t.key;
                   const colors = themeMetadata[t.key] || { bg: "#ffffff", primary: "#000000", secondary: "#cccccc", desc: "" };
@@ -219,7 +240,7 @@ function CreateFormDialog() {
           </div>
 
           <DialogFooter className="border-t pt-4">
-            <Button variant="ghost" type="button" onClick={() => setOpen(false)} className="h-10 text-xs">
+            <Button variant="ghost" type="button" onClick={() => onOpenChange(false)} className="h-10 text-xs">
               Cancel
             </Button>
             <Button type="submit" disabled={createForm.isPending} className="bg-primary hover:bg-primary/95 font-bold h-10 px-6 text-xs">
@@ -232,15 +253,154 @@ function CreateFormDialog() {
   );
 }
 
+function ThemeExplorer({ onSelectTheme }: { onSelectTheme: (themeKey: string) => void }) {
+  const { data: themes, isLoading } = trpc.form.getThemeCatalog.useQuery();
+
+  return (
+    <section className="mb-10">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <SparklesIcon className="h-3.5 w-3.5" />
+            Theme Explorer
+          </div>
+          <h2 className="mt-3 text-2xl font-semibold">Pick a theme to jumpstart your form</h2>
+          <p className="mt-1 text-sm text-muted-foreground max-w-2xl">
+            Browse curated templates crafted for real-world events, communities, and product launches.
+            Each theme gives your form an instant visual identity.
+          </p>
+        </div>
+        <Button variant="outline" className="gap-2" onClick={() => onSelectTheme("silicon-minimal")}
+        >
+          Start from scratch
+          <PlusIcon className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground">Loading themes...</div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {themes?.map((theme) => {
+            const meta = themeMetadata[theme.key] || { bg: "#ffffff", primary: "#000000", secondary: "#cccccc", desc: "" };
+
+            return (
+              <Card key={theme.key} className="group overflow-hidden border border-slate-200/70 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                <div
+                  className="h-24"
+                  style={{
+                    background: `linear-gradient(135deg, ${meta.primary}, ${meta.secondary})`,
+                  }}
+                />
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {theme.category}
+                    </span>
+                    <Badge variant="secondary" className="text-[10px]">Template</Badge>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold leading-tight">{theme.label}</h3>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{meta.desc}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex -space-x-1">
+                      <div className="h-5 w-5 rounded-full border border-white" style={{ backgroundColor: meta.bg }} />
+                      <div className="h-5 w-5 rounded-full border border-white" style={{ backgroundColor: meta.primary }} />
+                      <div className="h-5 w-5 rounded-full border border-white" style={{ backgroundColor: meta.secondary }} />
+                    </div>
+                    <Button size="sm" variant="outline" className="h-8 gap-2" onClick={() => onSelectTheme(theme.key)}>
+                      Use theme
+                      <SparklesIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ShareDialog({
+  open,
+  onOpenChange,
+  title,
+  slug,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  slug: string;
+}) {
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}/f/${slug}`;
+  }, [slug]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-130">
+        <DialogHeader>
+          <DialogTitle>Share “{title}”</DialogTitle>
+          <DialogDescription>Anyone with this link can open the published form.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="share-link">Shareable link</Label>
+            <div className="flex gap-2">
+              <Input id="share-link" value={shareUrl} readOnly className="font-mono text-xs" />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareUrl);
+                  toast.success("Link copied to clipboard!");
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            onClick={() => window.open(`/f/${slug}`, "_blank")}
+          >
+            Open live
+            <ExternalLinkIcon className="h-4 w-4" />
+          </Button>
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function FormsList() {
   const { data: forms, isLoading } = trpc.form.listMine.useQuery();
   const router = useRouter();
   const utils = trpc.useUtils();
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ title: string; slug: string } | null>(null);
+  const [pendingShare, setPendingShare] = useState<{ id: string; title: string; slug: string } | null>(null);
   
   const publishForm = trpc.form.publish.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success("Form published!");
       utils.form.listMine.invalidate();
+      if (pendingShare?.id === variables.formId) {
+        setShareTarget({ title: pendingShare.title, slug: pendingShare.slug });
+        setShareOpen(true);
+        setPendingShare(null);
+      }
     },
   });
   
@@ -335,49 +495,88 @@ function FormsList() {
               </div>
             )}
           </CardContent>
-          <CardFooter className="bg-muted/50 p-4 flex justify-between gap-2 border-t">
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/builder/${form.id}`)}>
-              <SettingsIcon className="w-4 h-4 mr-2" /> Edit
-            </Button>
-            
-            {form.status === "PUBLISHED" ? (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => unpublishForm.mutate({ formId: form.id })}
-                disabled={unpublishForm.isPending}
-              >
-                Unpublish
+          <CardFooter className="bg-muted/50 p-4 flex flex-col gap-2 border-t">
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" size="sm" onClick={() => router.push(`/builder/${form.id}`)}>
+                <SettingsIcon className="w-4 h-4 mr-2" /> Edit
               </Button>
-            ) : (
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={() => publishForm.mutate({ formId: form.id })}
-                disabled={publishForm.isPending || form.status === "ARCHIVED"}
-              >
-                Publish
-              </Button>
-            )}
-            
-            {form.status !== "ARCHIVED" && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => {
-                  if (confirm("Are you sure you want to archive this form?")) {
-                    archiveForm.mutate({ formId: form.id });
-                  }
-                }}
-                disabled={archiveForm.isPending}
-              >
-                <Trash2Icon className="w-4 h-4" />
-              </Button>
-            )}
+              {form.status === "PUBLISHED" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    setShareTarget({ title: form.title, slug: form.slug });
+                    setShareOpen(true);
+                  }}
+                >
+                  <Share2Icon className="w-4 h-4" /> Share
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    setPendingShare({ id: form.id, title: form.title, slug: form.slug });
+                    publishForm.mutate({ formId: form.id });
+                  }}
+                  disabled={publishForm.isPending || form.status === "ARCHIVED"}
+                >
+                  <SparklesIcon className="w-4 h-4" /> Publish & Share
+                </Button>
+              )}
+            </div>
+
+            <div className="flex justify-between gap-2">
+              {form.status === "PUBLISHED" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => unpublishForm.mutate({ formId: form.id })}
+                  disabled={unpublishForm.isPending}
+                >
+                  Unpublish
+                </Button>
+              ) : (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => publishForm.mutate({ formId: form.id })}
+                  disabled={publishForm.isPending || form.status === "ARCHIVED"}
+                >
+                  Publish
+                </Button>
+              )}
+
+              {form.status !== "ARCHIVED" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    if (confirm("Are you sure you want to archive this form?")) {
+                      archiveForm.mutate({ formId: form.id });
+                    }
+                  }}
+                  disabled={archiveForm.isPending}
+                >
+                  <Trash2Icon className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </CardFooter>
         </Card>
       ))}
+
+      {shareTarget && (
+        <ShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          title={shareTarget.title}
+          slug={shareTarget.slug}
+        />
+      )}
     </div>
   );
 }

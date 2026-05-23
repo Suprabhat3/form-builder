@@ -16,7 +16,7 @@ export default function Home() {
       <TopNavBar />
       
       {/* Main Content Canvas */}
-      <main className="flex-grow relative z-10">
+      <main className="grow relative z-10">
         <HeroSection />
         <FeaturesSection />
         <CTASection />

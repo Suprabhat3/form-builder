@@ -18,6 +18,12 @@ export type PendingSignup = {
   password: string;
 };
 
+export type AuthSessionPayload = {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+};
+
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -50,6 +56,56 @@ export function setAuthSession(payload: {
   window.localStorage.setItem(REFRESH_TOKEN_KEY, payload.refreshToken);
   window.localStorage.setItem(USER_KEY, JSON.stringify(payload.user));
   window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+}
+
+function getJwtExpiryMs(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    const payload = parts[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = JSON.parse(
+      new TextDecoder().decode(Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))),
+    ) as { exp?: number };
+    if (typeof decoded.exp !== "number") return null;
+    return decoded.exp * 1000;
+  } catch {
+    return null;
+  }
+}
+
+export function getAccessTokenExpiryMs(): number | null {
+  const token = getAccessToken();
+  if (!token) return null;
+  return getJwtExpiryMs(token);
+}
+
+export async function refreshAuthSession(apiBaseUrl: string): Promise<AuthSessionPayload | null> {
+  if (typeof window === "undefined") return null;
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/authentication/refresh`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as AuthSessionPayload;
+    if (!data?.accessToken || !data?.refreshToken || !data?.user) return null;
+
+    setAuthSession(data);
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export function clearAuthSession(): void {
