@@ -8,16 +8,16 @@ import { TopNavBar } from "~/components/landing/TopNavBar";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { getAuthUser } from "~/lib/auth-session";
-import { 
-  SparklesIcon, 
-  TvIcon, 
-  Gamepad2Icon, 
-  CpuIcon, 
-  TerminalIcon, 
-  RocketIcon, 
-  CompassIcon, 
-  UsersIcon, 
-  ArrowLeftIcon, 
+import {
+  SparklesIcon,
+  TvIcon,
+  Gamepad2Icon,
+  CpuIcon,
+  TerminalIcon,
+  RocketIcon,
+  CompassIcon,
+  UsersIcon,
+  ArrowLeftIcon,
   SearchIcon,
   PlayIcon,
   CheckCircle2Icon,
@@ -64,7 +64,7 @@ const TEMPLATES: Template[] = [
     label: "Movie Noir",
     category: "Movies",
     tagline: "Stark silhouettes, classic serif fonts, and high shadow drama.",
-    image: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80",
+    image: "/movie-noir.png",
     font: "Playfair Display & Georgia",
     highlights: ["Scanline film grain backdrop", "Deep crimson accents", "Flat border stroke style", "Hard offset box drop-shadows"],
     colors: ["#0a0a0c", "#ffffff", "#ba1a1a"],
@@ -75,7 +75,7 @@ const TEMPLATES: Template[] = [
     label: "Anime Neon",
     category: "Anime",
     tagline: "Cyberpunk Tokyo nights with vibrant glows and neon energy.",
-    image: "https://images.unsplash.com/photo-1554629947-334ff61d85dc?auto=format&fit=crop&w=800&q=80",
+    image: "/anime-neon.png",
     font: "Orbitron & Outfit",
     highlights: ["Translucent glassmorphism", "Ambient pink & cyan blur halo", "Neon-cyan input focus glow", "Glow-magenta select elements"],
     colors: ["#0b0314", "#ff007f", "#00f0ff"],
@@ -86,7 +86,7 @@ const TEMPLATES: Template[] = [
     label: "Retro Arcade",
     category: "Games",
     tagline: "80s vintage console, scanlines, and pixelated styling.",
-    image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80",
+    image: "/retro-arcade.png",
     font: "Press Start 2P & Fira Code",
     highlights: ["Grid block backdrops", "Phosphor green CRT screens", "Bright yellow borders", "Bouncing arcade thank-you animations"],
     colors: ["#0d0d15", "#39ff14", "#f39c12"],
@@ -97,7 +97,7 @@ const TEMPLATES: Template[] = [
     label: "Silicon Minimal",
     category: "Tech Companies",
     tagline: "Sleek Modern SaaS, clean micro-shadows, and dot-blueprint grid.",
-    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80",
+    image: "/silicon-minimal.png",
     font: "Plus Jakarta Sans",
     highlights: ["Subtle grid matrices", "Pure white floating card elements", "Premium blue focus ring halos", "Responsive state lifters"],
     colors: ["#f8fafc", "#0f62fe", "#64748b"],
@@ -108,7 +108,7 @@ const TEMPLATES: Template[] = [
     label: "Terminal Hacker",
     category: "Operating Systems",
     tagline: "Green-on-black phosphor terminal for retro system builders.",
-    image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+    image: "/terminal-hacker.png",
     font: "Fira Code",
     highlights: ["Pitch black screen console", "Prompt symbol prefixes ($ and root)", "Glowing phosphor input grids", "Monospaced submit styling"],
     colors: ["#020202", "#00ff00", "#008800"],
@@ -119,7 +119,7 @@ const TEMPLATES: Template[] = [
     label: "Startup Pitch",
     category: "Startups",
     tagline: "Sleek YC deck styles with organic gradients and pill inputs.",
-    image: "https://images.unsplash.com/photo-1556761175-5973dc0f32b7?auto=format&fit=crop&w=800&q=80",
+    image: "/startup-pitch.png",
     font: "Outfit",
     highlights: ["Warm indigo-to-purple background", "Highly rounded organic pill borders", "Sleek button gradients", "Spinning confetti success screens"],
     colors: ["#f5f3ff", "#4f46e5", "#312e81"],
@@ -130,7 +130,7 @@ const TEMPLATES: Template[] = [
     label: "Hackathon Rush",
     category: "Events",
     tagline: "High voltage brutalism, bold yellow, and sticker layouts.",
-    image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
+    image: "/hackathon-rush.png",
     font: "Space Grotesk",
     highlights: ["Saturated yellow canvas", "Bold 3px solid black outlines", "Active offset press buttons", "Asymmetrical rotated card cards"],
     colors: ["#facc15", "#000000", "#ffffff"],
@@ -141,7 +141,7 @@ const TEMPLATES: Template[] = [
     label: "Community Warm",
     category: "Communities",
     tagline: "Cozy eco-friendly gather spaces, soft ivory, and leafy greens.",
-    image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80",
+    image: "/community-warm.png",
     font: "Lora & Sans-serif",
     highlights: ["Warm cream bases", "Foliage green button shapes", "Eco border elements", "Heart-shaped submissions panels"],
     colors: ["#FAF6F0", "#2e7d32", "#FAF6F0"],
@@ -164,9 +164,9 @@ export default function TemplatesPage() {
   // Filter templates based on category and search
   const filteredTemplates = TEMPLATES.filter((t) => {
     const matchesCategory = selectedCategory === "All" || t.category === selectedCategory;
-    const matchesSearch = 
-      t.label.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      t.tagline.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch =
+      t.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.tagline.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.category.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
@@ -262,7 +262,7 @@ export default function TemplatesPage() {
       <TopNavBar />
 
       <main className="flex-grow container max-w-7xl mx-auto py-12 px-margin relative z-10">
-        
+
         {/* Header Title Section */}
         <div className="text-center max-w-2xl mx-auto mb-16 md:mb-20">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold mb-6 border border-primary/20 tracking-widest uppercase shadow-sm">
@@ -296,11 +296,10 @@ export default function TemplatesPage() {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all duration-300 border ${
-                  selectedCategory === category
+                className={`px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all duration-300 border ${selectedCategory === category
                     ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105"
                     : "bg-white/80 hover:bg-slate-50 hover:scale-105 text-slate-600 border-slate-200 hover:border-slate-300 shadow-sm"
-                }`}
+                  }`}
               >
                 {category}
               </button>
@@ -312,22 +311,22 @@ export default function TemplatesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
           {filteredTemplates.map((template) => {
             return (
-              <Card 
-                key={template.key} 
+              <Card
+                key={template.key}
                 className="group flex flex-col overflow-hidden border-slate-200/60 bg-white/80 hover:bg-white backdrop-blur-md transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/30"
               >
                 {/* 16:9 Image Header */}
                 <div className="relative w-full aspect-video overflow-hidden border-b border-slate-100">
                   <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors z-10" />
-                  <img 
-                    src={template.image} 
-                    alt={template.label} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                  <img
+                    src={template.image}
+                    alt={template.label}
+                    className="w-full h-full object-fill group-hover:scale-105 transition-transform duration-700 ease-out"
                   />
                   <div className="absolute bottom-2 right-2 z-20">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                    {/* <span className="text-[10px] font-bold uppercase tracking-widest text-white bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
                       {template.category}
-                    </span>
+                    </span> */}
                   </div>
                 </div>
 
@@ -360,8 +359,8 @@ export default function TemplatesPage() {
                     <div className="flex gap-2">
                       {template.colors.map((color, idx) => (
                         <div key={idx} className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                          <div 
-                            className="w-3 h-3 rounded-full border border-slate-300 shadow-inner shrink-0" 
+                          <div
+                            className="w-3 h-3 rounded-full border border-slate-300 shadow-inner shrink-0"
                             style={{ backgroundColor: color }}
                           />
                           <span className="text-[9px] font-mono text-slate-500 uppercase">{color}</span>
@@ -372,18 +371,18 @@ export default function TemplatesPage() {
                 </CardContent>
 
                 <CardFooter className="p-5 bg-slate-50/80 border-t flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setPreviewTheme(template.key)}
                     className="flex-1 hover:bg-slate-100 border-slate-200 text-xs font-semibold gap-1.5"
                   >
                     <PlayIcon className="w-3 h-3 fill-current text-primary" />
                     Preview Live
                   </Button>
-                  <Button 
-                    variant="default" 
-                    size="sm" 
+                  <Button
+                    variant="default"
+                    size="sm"
                     onClick={() => handleUseTemplate(template.key)}
                     className="flex-1 bg-primary hover:bg-primary/95 text-xs font-bold"
                   >
@@ -416,7 +415,7 @@ export default function TemplatesPage() {
       {previewTheme && (
         <div className="fixed inset-0 z-[100] flex flex-col justify-end sm:justify-center items-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="relative w-full max-w-4xl bg-background rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[100vh] sm:max-h-[90vh] overflow-hidden border border-border animate-in slide-in-from-bottom-6 duration-300">
-            
+
             {/* Modal Header Panel */}
             <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 text-foreground px-6 py-4 flex items-center justify-between shrink-0 border-b border-border z-10 relative">
               <div className="flex items-center gap-3">
@@ -433,9 +432,9 @@ export default function TemplatesPage() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2">
-                <Button 
+                <Button
                   size="sm"
                   className="bg-primary hover:bg-primary/95 text-xs text-primary-foreground font-bold h-8 px-4"
                   onClick={() => {
@@ -461,7 +460,7 @@ export default function TemplatesPage() {
                 <FormRenderer form={mockForm} isPreview={true} />
               </div>
             </div>
-            
+
             {/* Bottom alert bar */}
             <div className="bg-muted/50 backdrop-blur border-t border-border px-6 py-3 text-center text-[11px] text-muted-foreground shrink-0 relative z-10">
               Preview Mode: Your submission will not be saved.

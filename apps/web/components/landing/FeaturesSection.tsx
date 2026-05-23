@@ -13,6 +13,7 @@ type Theme = {
   bgClass: string;
   textClass: string;
   emoji: string;
+  image: string;
 };
 
 const THEMES = [
@@ -25,6 +26,7 @@ const THEMES = [
     bgClass: "from-zinc-950 via-slate-900 to-black",
     textClass: "text-white",
     emoji: "🎬",
+    image: "/movie-noir.png",
   },
   {
     key: "anime-neon",
@@ -35,6 +37,7 @@ const THEMES = [
     bgClass: "from-purple-950 via-indigo-950 to-violet-950",
     textClass: "text-white",
     emoji: "⚡",
+    image: "/anime-neon.png",
   },
   {
     key: "retro-arcade",
@@ -45,6 +48,7 @@ const THEMES = [
     bgClass: "from-slate-950 via-neutral-900 to-zinc-950",
     textClass: "text-white",
     emoji: "🕹️",
+    image: "/retro-arcade.png",
   },
   {
     key: "silicon-minimal",
@@ -55,6 +59,7 @@ const THEMES = [
     bgClass: "from-slate-50 via-slate-100 to-zinc-100",
     textClass: "text-slate-800",
     emoji: "💻",
+    image: "/silicon-minimal.png",
   },
   {
     key: "terminal-hacker",
@@ -65,6 +70,7 @@ const THEMES = [
     bgClass: "from-black via-zinc-950 to-neutral-950",
     textClass: "text-white",
     emoji: "💾",
+    image: "/terminal-hacker.png",
   },
   {
     key: "startup-pitch",
@@ -75,6 +81,7 @@ const THEMES = [
     bgClass: "from-indigo-50 via-purple-50 to-violet-50",
     textClass: "text-indigo-900",
     emoji: "🚀",
+    image: "/startup-pitch.png",
   },
   {
     key: "hackathon-rush",
@@ -85,6 +92,7 @@ const THEMES = [
     bgClass: "from-yellow-400 via-amber-400 to-yellow-500",
     textClass: "text-black",
     emoji: "🏆",
+    image: "/hackathon-rush.png",
   },
   {
     key: "community-warm",
@@ -95,6 +103,7 @@ const THEMES = [
     bgClass: "from-stone-50 via-orange-50 to-amber-50",
     textClass: "text-stone-800",
     emoji: "🌿",
+    image: "/community-warm.png",
   },
 ] satisfies [Theme, ...Theme[]];
 
@@ -383,25 +392,28 @@ export function FeaturesSection() {
                     : "border-transparent hover:border-outline-variant/50 hover:scale-[1.01]",
                 ].join(" ")}
               >
-                {/* Gradient preview */}
-                <div className={`h-24 sm:h-28 bg-gradient-to-br ${t.bgClass} flex items-center justify-center relative`}>
-                  <span className="text-3xl sm:text-2xl drop-shadow-md transition-transform duration-300 group-hover/card:scale-110">
-                    {t.emoji}
-                  </span>
-                  {/* Color swatches bottom strip */}
-                  <div className="absolute bottom-0 left-0 right-0 flex h-1.5">
-                    {t.colors.map((c, ci) => (
-                      <div key={ci} className="flex-1" style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
+                {/* Image preview */}
+                <div className="relative w-full aspect-video overflow-hidden border-b border-outline-variant/10">
+                  <div className="absolute inset-0 bg-black/5 group-hover/card:bg-transparent transition-colors z-10" />
+                  <img
+                    src={t.image}
+                    alt={t.label}
+                    className="w-full h-full object-fill group-hover/card:scale-105 transition-transform duration-500 ease-out"
+                  />
                   {/* Active indicator */}
                   {activeTheme.key === t.key && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-md">
+                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-md z-20">
                       <svg className="w-3 h-3 text-on-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
                     </div>
                   )}
+                  {/* Color swatches bottom strip */}
+                  <div className="absolute bottom-0 left-0 right-0 flex h-1.5 z-20">
+                    {t.colors.map((c, ci) => (
+                      <div key={ci} className="flex-1" style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
                 </div>
 
                 {/* Label */}
@@ -417,10 +429,8 @@ export function FeaturesSection() {
           <div className="mt-4 flex flex-col sm:flex-row items-center gap-3 p-4 rounded-2xl border border-outline-variant/25 bg-surface-container/40 backdrop-blur-sm">
             {/* Left: icon + info */}
             <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
-              <div
-                className={`shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${theme.bgClass} flex items-center justify-center shadow-lg text-xl sm:text-2xl border border-white/10`}
-              >
-                {theme.emoji}
+              <div className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden shadow-lg border border-outline-variant/20 relative">
+                <img src={theme.image} alt={theme.label} className="w-full h-full object-fill" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
