@@ -21,17 +21,50 @@ import {
   SearchIcon,
   PlayIcon,
   CheckCircle2Icon,
-  XIcon
+  XIcon,
+  LucideIcon
 } from "lucide-react";
 
+export interface Template {
+  key: string;
+  label: string;
+  category: string;
+  tagline: string;
+  image: string;
+  font: string;
+  highlights: string[];
+  colors: string[];
+  bgClass: string;
+}
+
+export interface FormField {
+  id: string;
+  key: string;
+  type: string;
+  label: string;
+  helperText: string | null;
+  placeholder: string | null;
+  required: boolean;
+  position: number;
+  config: Record<string, unknown>;
+}
+
+export interface FormDetails {
+  id: string;
+  title: string;
+  description: string | null;
+  themeKey: string;
+  fields: FormField[];
+}
+
 // List of all 8 curated templates
-const TEMPLATES = [
+const TEMPLATES: Template[] = [
   {
     key: "movie-noir",
     label: "Movie Noir",
     category: "Movies",
     tagline: "Stark silhouettes, classic serif fonts, and high shadow drama.",
-    icon: TvIcon,
+    image: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80",
     font: "Playfair Display & Georgia",
     highlights: ["Scanline film grain backdrop", "Deep crimson accents", "Flat border stroke style", "Hard offset box drop-shadows"],
     colors: ["#0a0a0c", "#ffffff", "#ba1a1a"],
@@ -42,7 +75,7 @@ const TEMPLATES = [
     label: "Anime Neon",
     category: "Anime",
     tagline: "Cyberpunk Tokyo nights with vibrant glows and neon energy.",
-    icon: SparklesIcon,
+    image: "https://images.unsplash.com/photo-1554629947-334ff61d85dc?auto=format&fit=crop&w=800&q=80",
     font: "Orbitron & Outfit",
     highlights: ["Translucent glassmorphism", "Ambient pink & cyan blur halo", "Neon-cyan input focus glow", "Glow-magenta select elements"],
     colors: ["#0b0314", "#ff007f", "#00f0ff"],
@@ -53,7 +86,7 @@ const TEMPLATES = [
     label: "Retro Arcade",
     category: "Games",
     tagline: "80s vintage console, scanlines, and pixelated styling.",
-    icon: Gamepad2Icon,
+    image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80",
     font: "Press Start 2P & Fira Code",
     highlights: ["Grid block backdrops", "Phosphor green CRT screens", "Bright yellow borders", "Bouncing arcade thank-you animations"],
     colors: ["#0d0d15", "#39ff14", "#f39c12"],
@@ -64,7 +97,7 @@ const TEMPLATES = [
     label: "Silicon Minimal",
     category: "Tech Companies",
     tagline: "Sleek Modern SaaS, clean micro-shadows, and dot-blueprint grid.",
-    icon: CpuIcon,
+    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80",
     font: "Plus Jakarta Sans",
     highlights: ["Subtle grid matrices", "Pure white floating card elements", "Premium blue focus ring halos", "Responsive state lifters"],
     colors: ["#f8fafc", "#0f62fe", "#64748b"],
@@ -75,7 +108,7 @@ const TEMPLATES = [
     label: "Terminal Hacker",
     category: "Operating Systems",
     tagline: "Green-on-black phosphor terminal for retro system builders.",
-    icon: TerminalIcon,
+    image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
     font: "Fira Code",
     highlights: ["Pitch black screen console", "Prompt symbol prefixes ($ and root)", "Glowing phosphor input grids", "Monospaced submit styling"],
     colors: ["#020202", "#00ff00", "#008800"],
@@ -86,7 +119,7 @@ const TEMPLATES = [
     label: "Startup Pitch",
     category: "Startups",
     tagline: "Sleek YC deck styles with organic gradients and pill inputs.",
-    icon: RocketIcon,
+    image: "https://images.unsplash.com/photo-1556761175-5973dc0f32b7?auto=format&fit=crop&w=800&q=80",
     font: "Outfit",
     highlights: ["Warm indigo-to-purple background", "Highly rounded organic pill borders", "Sleek button gradients", "Spinning confetti success screens"],
     colors: ["#f5f3ff", "#4f46e5", "#312e81"],
@@ -97,7 +130,7 @@ const TEMPLATES = [
     label: "Hackathon Rush",
     category: "Events",
     tagline: "High voltage brutalism, bold yellow, and sticker layouts.",
-    icon: CompassIcon,
+    image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
     font: "Space Grotesk",
     highlights: ["Saturated yellow canvas", "Bold 3px solid black outlines", "Active offset press buttons", "Asymmetrical rotated card cards"],
     colors: ["#facc15", "#000000", "#ffffff"],
@@ -108,7 +141,7 @@ const TEMPLATES = [
     label: "Community Warm",
     category: "Communities",
     tagline: "Cozy eco-friendly gather spaces, soft ivory, and leafy greens.",
-    icon: UsersIcon,
+    image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80",
     font: "Lora & Sans-serif",
     highlights: ["Warm cream bases", "Foliage green button shapes", "Eco border elements", "Heart-shaped submissions panels"],
     colors: ["#FAF6F0", "#2e7d32", "#FAF6F0"],
@@ -150,56 +183,69 @@ export default function TemplatesPage() {
   };
 
   // Mock Form Structure to display in the Interactive Sandbox modal
-  const mockForm = {
+  const mockForm: FormDetails = {
     id: "mock-sandbox-preview",
-    title: `ZenForm Interactive Sandbox`,
-    description: `This is a live interactive workspace. Complete the inputs and press submit to see how this theme's micro-animations and submission elements behave!`,
+    title: `Global Tech Summit Registration`,
+    description: `Welcome to the official registration page for the Global Tech Summit. Please fill out your details to secure your spot.`,
     themeKey: previewTheme || "movie-noir",
     fields: [
       {
         id: "m1",
-        key: "tester_name",
+        key: "attendee_name",
         type: "SHORT_TEXT",
-        label: "Your Full Name",
-        helperText: "Verify font choices and typing aesthetics.",
-        placeholder: "e.g. Marie Curie",
+        label: "Full Name",
+        helperText: "Please enter your name as you'd like it to appear on your badge.",
+        placeholder: "e.g. Jane Doe",
         required: true,
         position: 0,
         config: {},
       },
       {
         id: "m2",
-        key: "tester_choice",
+        key: "attendee_role",
         type: "SINGLE_SELECT",
-        label: "How would you style your next project?",
-        helperText: "Tapping options demonstrates active selections, borders, and checks.",
+        label: "Primary Role",
+        helperText: "Select the role that best describes your profession.",
         placeholder: null,
         required: true,
         position: 1,
         config: {
-          options: ["Completely Minimalist", "Vibrant Glowing Neons", "CRT Terminal Screens", "Brutalist Hard Shadow Outlines"]
+          options: ["Software Engineer", "Product Manager", "Designer", "Founder / Executive", "Other"]
         },
       },
       {
         id: "m3",
-        key: "rating_val",
+        key: "years_experience",
         type: "NUMBER",
-        label: "Quick rating of this design (1-10)",
-        helperText: "Focus state triggers theme primary colors and rings.",
-        placeholder: "e.g. 10",
+        label: "Years of Experience",
+        helperText: "How long have you been in the tech industry?",
+        placeholder: "e.g. 5",
         required: false,
         position: 2,
-        config: { min: 1, max: 10 },
+        config: { min: 0, max: 50 },
       },
       {
         id: "m4",
-        key: "newsletter_signup",
-        type: "CHECKBOX",
-        label: "Subscribe to theme alerts",
-        helperText: "Checkboxes are custom designed to adapt to the active skin.",
+        key: "dietary_reqs",
+        type: "MULTI_SELECT",
+        label: "Dietary Requirements",
+        helperText: "We will do our best to accommodate your needs.",
         placeholder: null,
         required: false,
         position: 3,
+        config: {
+          options: ["Vegetarian", "Vegan", "Gluten-Free", "Nut Allergy", "None"]
+        },
+      },
+      {
+        id: "m5",
+        key: "newsletter_signup",
+        type: "CHECKBOX",
+        label: "Keep me updated on future events and news",
+        helperText: "You can unsubscribe at any time.",
+        placeholder: null,
+        required: false,
+        position: 4,
         config: {},
       }
     ],
@@ -218,42 +264,42 @@ export default function TemplatesPage() {
       <main className="flex-grow container max-w-7xl mx-auto py-12 px-margin relative z-10">
         
         {/* Header Title Section */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-4 border border-primary/20 tracking-wider uppercase">
+        <div className="text-center max-w-2xl mx-auto mb-16 md:mb-20">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold mb-6 border border-primary/20 tracking-widest uppercase shadow-sm">
             🎨 Premium Form Skins
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-primary via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 bg-gradient-to-r from-primary via-indigo-600 to-purple-600 bg-clip-text text-transparent drop-shadow-sm pb-2">
             Choose Form Art, Not Placeholders
           </h1>
-          <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+          <p className="text-base md:text-lg text-muted-foreground leading-relaxed px-4">
             Every form you share is a reflection of your brand. Explore our unauthenticated live preview templates, test input fields, and start building forms in seconds.
           </p>
         </div>
 
         {/* Filters and Search Bar */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-12 bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-6 items-center justify-between mb-16 bg-white/60 backdrop-blur-xl p-5 rounded-3xl border border-slate-200/60 shadow-lg shadow-slate-200/20">
           {/* Search Box */}
-          <div className="relative w-full md:w-80">
-            <SearchIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground opacity-70" />
+          <div className="relative w-full md:w-96 group">
+            <SearchIcon className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors" />
             <input
               type="text"
               placeholder="Search templates..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-10 pl-9 pr-4 rounded-xl border border-slate-200 bg-white/80 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full h-11 pl-11 pr-4 rounded-2xl border border-slate-200 bg-white/80 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all shadow-inner"
             />
           </div>
 
           {/* Categories Filter pills */}
-          <div className="flex flex-wrap gap-2 justify-center">
+          <div className="flex flex-wrap gap-2.5 justify-center">
             {categories.map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all border ${
+                className={`px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all duration-300 border ${
                   selectedCategory === category
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
+                    ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105"
+                    : "bg-white/80 hover:bg-slate-50 hover:scale-105 text-slate-600 border-slate-200 hover:border-slate-300 shadow-sm"
                 }`}
               >
                 {category}
@@ -263,25 +309,30 @@ export default function TemplatesPage() {
         </div>
 
         {/* Templates Catalog Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
           {filteredTemplates.map((template) => {
-            const Icon = template.icon;
             return (
               <Card 
                 key={template.key} 
-                className="group flex flex-col overflow-hidden border-slate-200 bg-white/70 hover:bg-white backdrop-blur-sm transition-all hover:translate-y-[-4px] hover:shadow-xl hover:border-primary/20 duration-300"
+                className="group flex flex-col overflow-hidden border-slate-200/60 bg-white/80 hover:bg-white backdrop-blur-md transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/30"
               >
-                {/* Visual Accent header showing background gradients */}
-                <div className={`h-24 bg-gradient-to-br ${template.bgClass} flex items-center justify-center p-4 relative overflow-hidden border-b`}>
-                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] bg-[size:10px_10px]" />
-                  <Icon className="w-12 h-12 text-white/95 group-hover:scale-110 transition-transform duration-300 relative z-10 drop-shadow-md" />
-                </div>
-
-                <CardHeader className="pb-4">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                {/* 16:9 Image Header */}
+                <div className="relative w-full aspect-video overflow-hidden border-b border-slate-100">
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors z-10" />
+                  <img 
+                    src={template.image} 
+                    alt={template.label} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                  />
+                  <div className="absolute bottom-2 right-2 z-20">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
                       {template.category}
                     </span>
+                  </div>
+                </div>
+
+                <CardHeader className="pb-4 pt-5">
+                  <div className="flex justify-between items-center mb-1">
                     <span className="text-[11px] font-mono text-muted-foreground bg-slate-100 px-2 py-0.5 rounded">
                       {template.font.split(" ")[0]}
                     </span>
@@ -364,10 +415,10 @@ export default function TemplatesPage() {
       {/* INTERACTIVE PLAYGROUND MODAL OVERLAY */}
       {previewTheme && (
         <div className="fixed inset-0 z-[100] flex flex-col justify-end sm:justify-center items-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="relative w-full max-w-4xl bg-background rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[100vh] sm:max-h-[90vh] overflow-hidden border border-slate-800 animate-in slide-in-from-bottom-6 duration-300">
+          <div className="relative w-full max-w-4xl bg-background rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[100vh] sm:max-h-[90vh] overflow-hidden border border-border animate-in slide-in-from-bottom-6 duration-300">
             
             {/* Modal Header Panel */}
-            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0 border-b border-slate-800">
+            <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 text-foreground px-6 py-4 flex items-center justify-between shrink-0 border-b border-border z-10 relative">
               <div className="flex items-center gap-3">
                 <span className="flex h-3 w-3 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -375,10 +426,10 @@ export default function TemplatesPage() {
                 </span>
                 <div>
                   <h3 className="font-bold text-sm leading-none flex items-center gap-2">
-                    {TEMPLATES.find((t) => t.key === previewTheme)?.label} Sandbox
+                    {TEMPLATES.find((t) => t.key === previewTheme)?.label} Preview
                   </h3>
-                  <p className="text-[10px] text-slate-400 mt-1 font-mono uppercase">
-                    Interactive Preview // Sandbox Mode
+                  <p className="text-[10px] text-muted-foreground mt-1 font-mono uppercase">
+                    Live Form Example
                   </p>
                 </div>
               </div>
@@ -386,7 +437,7 @@ export default function TemplatesPage() {
               <div className="flex items-center gap-2">
                 <Button 
                   size="sm"
-                  className="bg-primary hover:bg-primary/95 text-xs text-white font-bold h-8 px-4"
+                  className="bg-primary hover:bg-primary/95 text-xs text-primary-foreground font-bold h-8 px-4"
                   onClick={() => {
                     const theme = previewTheme;
                     setPreviewTheme(null);
@@ -397,7 +448,7 @@ export default function TemplatesPage() {
                 </Button>
                 <button
                   onClick={() => setPreviewTheme(null)}
-                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center border border-slate-700 hover:scale-105 active:scale-95 transition-all"
+                  className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 text-foreground flex items-center justify-center border border-border hover:scale-105 active:scale-95 transition-all"
                 >
                   <XIcon className="w-4 h-4" />
                 </button>
@@ -405,15 +456,15 @@ export default function TemplatesPage() {
             </div>
 
             {/* Scrollable sandbox environment */}
-            <div className="flex-1 overflow-y-auto bg-slate-950 p-2 sm:p-6 min-h-[350px]">
-              <div className="border border-slate-800 rounded-2xl overflow-hidden shadow-inner bg-slate-900/5 select-none">
+            <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative bg-background">
+              <div className="select-none">
                 <FormRenderer form={mockForm} isPreview={true} />
               </div>
             </div>
             
             {/* Bottom alert bar */}
-            <div className="bg-slate-950 border-t border-slate-900 px-6 py-3 text-center text-[10px] font-mono text-slate-500 shrink-0">
-              ⚡ SUBMISSION FLOWS IN SANDBOX MODE ARE FULLY SIMULATED AND DO NOT WRITE TO DATABASE RECORDS.
+            <div className="bg-muted/50 backdrop-blur border-t border-border px-6 py-3 text-center text-[11px] text-muted-foreground shrink-0 relative z-10">
+              Preview Mode: Your submission will not be saved.
             </div>
           </div>
         </div>

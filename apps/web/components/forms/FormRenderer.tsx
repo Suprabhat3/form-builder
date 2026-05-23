@@ -150,7 +150,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
     }
 
     if (isPreview) {
-      toast.info("This is a preview. Form answers look perfect!");
+      toast.info("Preview submission successful.");
       setSubmitted(true);
       return;
     }
@@ -235,10 +235,10 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
           </div>
           <div>
             <h2 className="theme-title text-3xl font-extrabold tracking-tight mb-3">
-              Submission Received!
+              Thank you!
             </h2>
             <p className="theme-muted text-sm max-w-sm mx-auto leading-relaxed">
-              Thank you for taking the time to fill out **{form.title}**. Your answers have been safely captured.
+              We've received your response for <strong>{form.title}</strong>.
             </p>
           </div>
           {isPreview && (
@@ -273,8 +273,8 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
               }} 
             />
           </div>
-          <span className="text-xs font-mono theme-muted whitespace-nowrap">
-            {answeredFieldsCount} of {totalFields} fields ({progressPercent}%)
+          <span className="text-xs font-medium theme-muted whitespace-nowrap">
+            {answeredFieldsCount} of {totalFields} answered ({progressPercent}%)
           </span>
         </div>
 
@@ -295,28 +295,28 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
         {/* Form Main Form Body */}
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Optional Respondent Data Capture */}
+          {/* Contact Details Capture */}
           <div className="theme-card p-6 md:p-8 space-y-4">
             <h3 className="text-base font-semibold border-b pb-2 mb-4 theme-muted uppercase tracking-wider">
-              Respondent Identity (Optional)
+              Your Details
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="resp-name" className="theme-label">Your Name</Label>
+                <Label htmlFor="resp-name" className="theme-label">Full Name</Label>
                 <Input
                   id="resp-name"
-                  placeholder="e.g. Satoshi Nakamoto"
+                  placeholder="e.g. Jane Doe"
                   value={respondentName}
                   onChange={(e) => setRespondentName(e.target.value)}
                   className="theme-input w-full h-10 px-3 bg-transparent"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="resp-email" className="theme-label">Your Email</Label>
+                <Label htmlFor="resp-email" className="theme-label">Email Address</Label>
                 <Input
                   id="resp-email"
                   type="email"
-                  placeholder="e.g. satoshi@bitcoin.org"
+                  placeholder="e.g. jane@example.com"
                   value={respondentEmail}
                   onChange={(e) => setRespondentEmail(e.target.value)}
                   className="theme-input w-full h-10 px-3 bg-transparent"
