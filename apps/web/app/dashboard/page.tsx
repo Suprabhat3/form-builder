@@ -257,20 +257,24 @@ function ThemeExplorer({ onSelectTheme }: { onSelectTheme: (themeKey: string) =>
   const { data: themes, isLoading } = trpc.form.getThemeCatalog.useQuery();
 
   return (
-    <section className="mb-10">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <SparklesIcon className="h-3.5 w-3.5" />
+    <section className="mb-14">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 bg-slate-900 text-white rounded-3xl pb-8 p-8 relative overflow-hidden">
+        {/* Background glow effects */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4"></div>
+        
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-200">
+            <SparklesIcon className="h-3.5 w-3.5 text-primary" />
             Theme Explorer
           </div>
-          <h2 className="mt-3 text-2xl font-semibold">Pick a theme to jumpstart your form</h2>
-          <p className="mt-1 text-sm text-muted-foreground max-w-2xl">
+          <h2 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">Pick a theme to jumpstart your form</h2>
+          <p className="mt-2 text-base text-slate-300 max-w-2xl">
             Browse curated templates crafted for real-world events, communities, and product launches.
             Each theme gives your form an instant visual identity.
           </p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => onSelectTheme("silicon-minimal")}
+        <Button variant="default" size="lg" className="relative z-10 gap-2 font-bold bg-white text-slate-900 hover:bg-slate-100" onClick={() => onSelectTheme("silicon-minimal")}
         >
           Start from scratch
           <PlusIcon className="h-4 w-4" />
@@ -278,39 +282,46 @@ function ThemeExplorer({ onSelectTheme }: { onSelectTheme: (themeKey: string) =>
       </div>
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Loading themes...</div>
+        <div className="flex justify-center p-12 text-slate-500">Loading exquisite themes...</div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {themes?.map((theme) => {
             const meta = themeMetadata[theme.key] || { bg: "#ffffff", primary: "#000000", secondary: "#cccccc", desc: "" };
 
             return (
-              <Card key={theme.key} className="group overflow-hidden border border-slate-200/70 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <Card key={theme.key} className="group overflow-hidden border-2 border-transparent bg-slate-50 hover:border-slate-300 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg relative">
                 <div
-                  className="h-24"
-                  style={{
-                    background: `linear-gradient(135deg, ${meta.primary}, ${meta.secondary})`,
-                  }}
-                />
-                <CardContent className="pt-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  className="h-32 p-4 relative overflow-hidden"
+                  style={{ backgroundColor: meta.bg }}
+                >
+                  <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(135deg, ${meta.primary}, transparent)` }} />
+                  {/* Mock Form Elements for Preview */}
+                  <div className="space-y-2 relative z-10 w-3/4">
+                    <div className="h-4 w-1/2 rounded bg-opacity-80" style={{ backgroundColor: meta.primary }} />
+                    <div className="h-8 w-full rounded border-2 shadow-sm bg-white" style={{ borderColor: meta.secondary + '40' }} />
+                    <div className="h-8 w-2/3 rounded-full mt-2" style={{ backgroundColor: meta.primary }} />
+                  </div>
+                </div>
+                <CardContent className="pt-4 space-y-3 bg-white relative">
+                  <div className="absolute top-0 right-4 -translate-y-1/2 bg-white p-1 rounded-full shadow-sm flex -space-x-1">
+                     <div className="h-5 w-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: meta.bg }} />
+                     <div className="h-5 w-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: meta.primary }} />
+                     <div className="h-5 w-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: meta.secondary }} />
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">
                       {theme.category}
                     </span>
-                    <Badge variant="secondary" className="text-[10px]">Template</Badge>
+                    <Badge variant="secondary" className="text-[10px] bg-slate-100">Template</Badge>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold leading-tight">{theme.label}</h3>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{meta.desc}</p>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight group-hover:text-primary transition-colors">{theme.label}</h3>
+                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed line-clamp-2">{meta.desc}</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex -space-x-1">
-                      <div className="h-5 w-5 rounded-full border border-white" style={{ backgroundColor: meta.bg }} />
-                      <div className="h-5 w-5 rounded-full border border-white" style={{ backgroundColor: meta.primary }} />
-                      <div className="h-5 w-5 rounded-full border border-white" style={{ backgroundColor: meta.secondary }} />
-                    </div>
-                    <Button size="sm" variant="outline" className="h-8 gap-2" onClick={() => onSelectTheme(theme.key)}>
-                      Use theme
+                  <div className="pt-2">
+                    <Button size="sm" variant="default" className="w-full gap-2 font-medium bg-slate-800 hover:bg-slate-900 group-hover:bg-primary transition-colors shadow-none" onClick={() => onSelectTheme(theme.key)}>
+                      Use this template
                       <SparklesIcon className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -342,40 +353,48 @@ function ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-130">
-        <DialogHeader>
-          <DialogTitle>Share “{title}”</DialogTitle>
-          <DialogDescription>Anyone with this link can open the published form.</DialogDescription>
+      <DialogContent className="sm:max-w-md border-2 border-slate-200 shadow-xl rounded-2xl">
+        <DialogHeader className="space-y-4">
+          <div className="mx-auto bg-green-100/50 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-2">
+            <Share2Icon className="w-8 h-8 text-green-600" />
+          </div>
+          <DialogTitle className="text-center text-2xl font-bold">Share your form</DialogTitle>
+          <DialogDescription className="text-center text-slate-500">
+            You're ready to collect responses! Distribute this link anywhere.
+          </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-4 pt-4 pb-2">
           <div className="space-y-2">
-            <Label htmlFor="share-link">Shareable link</Label>
-            <div className="flex gap-2">
-              <Input id="share-link" value={shareUrl} readOnly className="font-mono text-xs" />
+            <Label htmlFor="share-link" className="font-semibold text-xs uppercase tracking-wider text-slate-500">Public Link</Label>
+            <div className="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border">
+              <div className="bg-white px-3 py-2.5 rounded-lg border shadow-sm flex-1 truncate text-sm font-mono text-slate-700">
+                {shareUrl}
+              </div>
               <Button
                 type="button"
-                variant="outline"
+                variant="default"
+                className="gap-2 shrink-0 bg-slate-800 hover:bg-slate-900"
                 onClick={() => {
                   navigator.clipboard.writeText(shareUrl);
                   toast.success("Link copied to clipboard!");
                 }}
               >
-                Copy
+                Copy Link
               </Button>
             </div>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="border-t pt-4 mt-2 sm:justify-between items-center">
           <Button
             type="button"
-            variant="outline"
-            className="gap-2"
+            variant="ghost"
+            className="text-slate-500 hover:text-primary gap-2"
             onClick={() => window.open(`/f/${slug}`, "_blank")}
           >
-            Open live
             <ExternalLinkIcon className="h-4 w-4" />
+            Open live preview
           </Button>
-          <Button type="button" onClick={() => onOpenChange(false)}>
+          <Button type="button" className="px-8 font-semibold" onClick={() => onOpenChange(false)}>
             Done
           </Button>
         </DialogFooter>

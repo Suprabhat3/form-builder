@@ -39,43 +39,52 @@ function BuilderContent({ params }: { params: Promise<{ formId: string }> }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-muted/20">
-      <header className="border-b bg-background px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+    <div className="flex flex-col min-h-screen bg-slate-50">
+      <header className="border-b bg-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between sticky top-0 z-20 shadow-sm gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
+          <Button variant="outline" size="icon" className="rounded-full shadow-sm" onClick={() => router.push("/dashboard")}>
             <ArrowLeftIcon className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="font-semibold">{form.title}</h1>
-            <p className="text-xs text-muted-foreground">Status: {form.status}</p>
+            <div className="flex items-center gap-2">
+              <h1 className="font-bold text-lg text-slate-800">{form.title}</h1>
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                form.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+              }`}>
+                {form.status}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+              <span className="font-mono bg-slate-100 px-1 py-0.5 rounded">/f/{form.slug}</span>
+              • Theme: <span className="font-medium text-slate-600 capitalize">{form.themeKey.replace("-", " ")}</span>
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {form.status === "PUBLISHED" && (
-            <Button variant="outline" size="sm" onClick={() => window.open(`/f/${form.slug}`, "_blank")}>
+            <Button variant="default" size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold" onClick={() => window.open(`/f/${form.slug}`, "_blank")}>
               View Live Form
             </Button>
           )}
-          {/* We'll handle save dynamically, but adding a save button for layout completeness */}
-          <Button disabled variant="outline" size="sm" className="gap-2">
-            <SaveIcon className="w-4 h-4" /> Saved
+          <Button disabled variant="outline" size="sm" className="gap-2 bg-slate-100 text-slate-500 border-slate-200">
+            <SaveIcon className="w-4 h-4" /> Auto-saved
           </Button>
         </div>
       </header>
 
       <main className="flex-1 container max-w-5xl mx-auto py-8 px-4 sm:px-6">
         <Tabs defaultValue="fields" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="fields">Fields</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            <TabsTrigger value="preview">Live Preview</TabsTrigger>
+          <TabsList className="mb-8 bg-slate-200/50 p-1 flex w-full max-w-md mx-auto rounded-full shadow-inner">
+            <TabsTrigger value="fields" className="flex-1 rounded-full text-xs font-semibold py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">Builder</TabsTrigger>
+            <TabsTrigger value="settings" className="flex-1 rounded-full text-xs font-semibold py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">Settings</TabsTrigger>
+            <TabsTrigger value="preview" className="flex-1 rounded-full text-xs font-semibold py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">Live Preview</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="fields">
+          <TabsContent value="fields" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
             <FieldsEditor form={form} />
           </TabsContent>
           
-          <TabsContent value="settings">
+          <TabsContent value="settings" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
             <FormSettings form={form} />
           </TabsContent>
 
@@ -121,54 +130,64 @@ function FormSettings({ form }: { form: any }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Form Settings</CardTitle>
-        <CardDescription>Manage general settings for your form.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="title">Title</Label>
-          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>Theme</Label>
-          <Select value={themeKey} onValueChange={setThemeKey}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {themes?.map((t) => (
-                <SelectItem key={t.key} value={t.key}>
-                  {t.label} ({t.category})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Visibility</Label>
-          <Select value={visibility} onValueChange={setVisibility}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PUBLIC">Public</SelectItem>
-              <SelectItem value="UNLISTED">Unlisted</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </CardContent>
-      <CardFooter>
-        <Button onClick={handleSave} disabled={updateForm.isPending}>
-          {updateForm.isPending ? "Saving..." : "Save Settings"}
-        </Button>
-      </CardFooter>
-    </Card>
+    <div className="max-w-2xl mx-auto">
+      <Card className="border-slate-200 shadow-sm overflow-hidden">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-5">
+          <CardTitle className="text-xl">Form Settings</CardTitle>
+          <CardDescription>Configure the underlying details and layout themes for your form.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6 pt-6">
+          <div className="space-y-3">
+            <Label htmlFor="title" className="text-sm font-semibold text-slate-700">Form Title</Label>
+            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-slate-50 border-slate-200 focus-visible:ring-primary/20" />
+          </div>
+          <div className="space-y-3">
+            <Label htmlFor="description" className="text-sm font-semibold text-slate-700">Description</Label>
+            <Textarea 
+              id="description" 
+              value={description} 
+              onChange={(e) => setDescription(e.target.value)} 
+              className="resize-none h-24 bg-slate-50 border-slate-200 focus-visible:ring-primary/20" 
+              placeholder="Give respondents a little context about this form..."
+            />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold text-slate-700">Form Theme</Label>
+              <Select value={themeKey} onValueChange={setThemeKey}>
+                <SelectTrigger className="bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Select a theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  {themes?.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.label} <span className="text-[10px] text-slate-400 font-mono tracking-wider ml-2">{t.category.toUpperCase()}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold text-slate-700">Visibility</Label>
+              <Select value={visibility} onValueChange={setVisibility}>
+                <SelectTrigger className="bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Select visibility status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PUBLIC">Public</SelectItem>
+                  <SelectItem value="UNLISTED">Unlisted</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="bg-slate-50 border-t border-slate-100 py-4 flex justify-end">
+          <Button onClick={handleSave} disabled={updateForm.isPending} className="bg-slate-800 hover:bg-slate-900 text-white font-medium px-6">
+            {updateForm.isPending ? "Saving..." : "Save Settings"}
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
   );
 }
 
@@ -220,57 +239,65 @@ function FieldsEditor({ form }: { form: any }) {
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6">
-      <div className="flex-1 space-y-4">
+    <div className="flex flex-col md:flex-row gap-8">
+      <div className="flex-1 space-y-5">
         {form.fields.length === 0 ? (
-          <div className="text-center py-12 bg-background border border-dashed rounded-lg">
-            <p className="text-muted-foreground">No fields added yet. Add a field to get started.</p>
+          <div className="flex flex-col items-center justify-center py-20 px-4 bg-white border-2 border-dashed border-slate-200 rounded-3xl text-center">
+            <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-sm">
+              <PlusIcon className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 tracking-tight">Your form is empty</h3>
+            <p className="text-sm text-slate-500 mt-2 max-w-sm">
+              Get started by adding fields from the menu on the right. Build exactly what you need.
+            </p>
           </div>
         ) : (
-          form.fields.map((field: any, index: number) => (
-            <FieldItem 
-              key={field.id} 
-              field={field} 
-              formId={form.id} 
-              isFirst={index === 0}
-              isLast={index === form.fields.length - 1}
-              onMoveUp={() => handleReorder(index, 'up')}
-              onMoveDown={() => handleReorder(index, 'down')}
-              isReordering={reorderFields.isPending}
-              onRemove={() => removeField.mutate({ formId: form.id, fieldId: field.id })}
-              isDeleting={removeField.isPending && removeField.variables?.fieldId === field.id}
-            />
-          ))
+          <div className="space-y-4">
+            {form.fields.map((field: any, index: number) => (
+              <FieldItem 
+                key={field.id} 
+                field={field} 
+                formId={form.id} 
+                isFirst={index === 0}
+                isLast={index === form.fields.length - 1}
+                onMoveUp={() => handleReorder(index, 'up')}
+                onMoveDown={() => handleReorder(index, 'down')}
+                isReordering={reorderFields.isPending}
+                onRemove={() => removeField.mutate({ formId: form.id, fieldId: field.id })}
+                isDeleting={removeField.isPending && removeField.variables?.fieldId === field.id}
+              />
+            ))}
+          </div>
         )}
       </div>
       
-      <div className="w-full md:w-64 space-y-4">
-        <Card className="sticky top-24">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="w-full md:w-72 space-y-4">
+        <Card className="sticky top-24 border-slate-200/60 shadow-sm backdrop-blur-sm bg-white/60">
+          <CardHeader className="pb-4 border-b border-slate-100 bg-slate-50/50">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <PlusIcon className="w-3.5 h-3.5" />
               Add Field
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="p-4 grid grid-cols-2 gap-2">
             {[
-              { type: "SHORT_TEXT", label: "Short Text" },
-              { type: "LONG_TEXT", label: "Long Text" },
-              { type: "NUMBER", label: "Number" },
-              { type: "SINGLE_SELECT", label: "Single Select" },
-              { type: "MULTI_SELECT", label: "Multi Select" },
-              { type: "CHECKBOX", label: "Checkboxes" },
-              { type: "DATE", label: "Date" },
+              { type: "SHORT_TEXT", label: "Short Text", icon: "Aa" },
+              { type: "LONG_TEXT", label: "Long Text", icon: "¶" },
+              { type: "NUMBER", label: "Number", icon: "123" },
+              { type: "SINGLE_SELECT", label: "Single Select", icon: "◉" },
+              { type: "MULTI_SELECT", label: "Multi Select", icon: "☑" },
+              { type: "CHECKBOX", label: "Checkbox", icon: "✓" },
+              { type: "DATE", label: "Date", icon: "📅" },
             ].map((t) => (
               <Button 
                 key={t.type}
                 variant="outline" 
-                className="w-full justify-start text-left" 
-                size="sm"
+                className="flex flex-col items-center justify-center p-3 h-20 bg-white border-slate-200 hover:border-primary hover:bg-primary/5 hover:text-primary transition-all duration-200" 
                 onClick={() => handleAddField(t.type)}
                 disabled={addField.isPending}
               >
-                <PlusIcon className="w-4 h-4 mr-2 opacity-50" />
-                {t.label}
+                <div className="text-lg font-mono mb-1 font-bold text-slate-400 group-hover:text-primary transition-colors">{t.icon}</div>
+                <span className="text-[10px] font-semibold tracking-wide whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{t.label}</span>
               </Button>
             ))}
           </CardContent>
@@ -437,77 +464,82 @@ function FieldItem({
   }
 
   return (
-    <Card className="group transition-all hover:border-primary/30">
-      <CardHeader className="py-4 flex flex-row items-start justify-between space-y-0">
+    <Card className="group transition-all border-slate-200 shadow-sm hover:shadow-md hover:border-primary/50 bg-white relative overflow-hidden">
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-200 group-hover:bg-primary/50 transition-colors" />
+      <CardHeader className="py-4 flex flex-row items-start justify-between space-y-0 pl-5">
         <div className="flex gap-3">
-          <div className="cursor-grab text-muted-foreground opacity-50 hover:opacity-100 mt-1">
+          <div className="cursor-grab text-slate-300 hover:text-slate-600 mt-1 transition-colors active:cursor-grabbing">
             <GripVerticalIcon className="w-5 h-5" />
           </div>
           <div>
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-base flex items-center gap-2 font-semibold text-slate-800">
               {field.label}
-              {field.required && <span className="text-destructive text-sm">*</span>}
-              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">
-                {field.type}
+              {field.required && <span className="text-rose-500 font-bold text-sm">*</span>}
+              <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 px-2.5 py-0.5 rounded-full ml-2">
+                {field.type.replace("_", " ")}
               </span>
             </CardTitle>
-            {field.helperText && <CardDescription className="mt-1">{field.helperText}</CardDescription>}
+            {field.helperText && <CardDescription className="mt-1.5 text-sm text-slate-500">{field.helperText}</CardDescription>}
           </div>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-50 p-1 rounded-xl shadow-sm border border-slate-100">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8" 
+            className="h-7 w-7 rounded-lg text-slate-500 hover:text-slate-900" 
             onClick={onMoveUp} 
             disabled={isFirst || isReordering}
           >
-            <ChevronUpIcon className="w-4 h-4 text-muted-foreground" />
+            <ChevronUpIcon className="w-4 h-4" />
             <span className="sr-only">Move Up</span>
           </Button>
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8" 
+            className="h-7 w-7 rounded-lg text-slate-500 hover:text-slate-900" 
             onClick={onMoveDown} 
             disabled={isLast || isReordering}
           >
-            <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
+            <ChevronDownIcon className="w-4 h-4" />
             <span className="sr-only">Move Down</span>
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(true)}>
-            <PencilIcon className="w-4 h-4 text-muted-foreground" />
+          <div className="w-px h-4 bg-slate-200 mx-1" />
+          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-slate-500 hover:text-primary hover:bg-primary/10" onClick={() => setIsEditing(true)}>
+            <PencilIcon className="w-3.5 h-3.5" />
             <span className="sr-only">Edit</span>
           </Button>
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            className="h-7 w-7 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50"
             onClick={onRemove}
             disabled={isDeleting}
           >
-            <Trash2Icon className="w-4 h-4" />
+            <Trash2Icon className="w-3.5 h-3.5" />
           </Button>
         </div>
       </CardHeader>
       
       {isOptionsType && options.length > 0 && (
-        <CardContent className="pt-0 pb-4 ml-8">
-          <div className="text-sm text-muted-foreground border-l-2 pl-3 py-1 space-y-1">
+        <CardContent className="pt-0 pb-5 pl-12">
+          <div className="text-sm text-slate-500 border-l-2 border-slate-100 pl-4 py-1 space-y-2">
             {options.slice(0, 3).map((opt, i) => (
-              <div key={i}>• {opt}</div>
+              <div key={i} className="flex items-center gap-2">
+                <div className={`w-3 h-3 border border-slate-300 ${field.type === 'SINGLE_SELECT' ? 'rounded-full' : 'rounded-sm'} shrink-0`} />
+                <span>{opt}</span>
+              </div>
             ))}
-            {options.length > 3 && <div className="text-xs opacity-70">+{options.length - 3} more</div>}
+            {options.length > 3 && <div className="text-xs font-semibold text-slate-400 mt-2 px-1">+{options.length - 3} more options</div>}
           </div>
         </CardContent>
       )}
       
       {!isOptionsType && Object.keys(field.config || {}).length > 0 && (
-        <CardContent className="pt-0 pb-4 ml-8">
+        <CardContent className="pt-0 pb-5 pl-12">
           <div className="flex flex-wrap gap-2">
             {Object.entries(field.config).map(([k, v]) => (
-              <span key={k} className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                {k}: {String(v)}
+              <span key={k} className="text-[10px] font-mono font-semibold bg-slate-50 border border-slate-100 px-2 py-1 rounded-md text-slate-500">
+                {k}: <span className="text-slate-700">{String(v)}</span>
               </span>
             ))}
           </div>

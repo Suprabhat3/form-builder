@@ -178,7 +178,7 @@
   --spacing-xs: 8px;
   --spacing-md: 24px;
   --spacing-lg: 40px;
-  --spacing-margin: 32px;
+  --spacing-margin: 16px;
   --spacing-gutter: 24px;
   --spacing-base: 4px;
 
@@ -226,6 +226,18 @@
   --text-headline-lg-mobile: 28px;
   --text-headline-lg-mobile--line-height: 1.2;
   --text-headline-lg-mobile--font-weight: 700;
+}
+
+/* Responsive margin token overrides */
+@media (min-width: 640px) {
+  :root, [class~="theme-container"] {
+    --spacing-margin: 24px;
+  }
+}
+@media (min-width: 1024px) {
+  :root, [class~="theme-container"] {
+    --spacing-margin: 32px;
+  }
 }
 
 @layer utilities {

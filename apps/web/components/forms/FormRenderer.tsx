@@ -209,7 +209,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const getThankYouIcon = () => {
     switch (form.themeKey) {
       case "movie-noir":
-        return <TrophyIcon className="w-16 h-16 text-[#ba1a1a]" />;
+        return <TrophyIcon className="w-16 h-16 text-error" />;
       case "anime-neon":
         return <SparklesIcon className="w-16 h-16 text-[#00f0ff] animate-pulse" />;
       case "retro-arcade":
@@ -297,7 +297,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
           
           {/* Optional Respondent Data Capture */}
           <div className="theme-card p-6 md:p-8 space-y-4">
-            <h3 className="text-base font-semibold border-b pb-2 mb-4 theme-muted uppercase tracking-wider text-xs">
+            <h3 className="text-base font-semibold border-b pb-2 mb-4 theme-muted uppercase tracking-wider">
               Respondent Identity (Optional)
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -362,7 +362,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
                       onChange={(e) => handleTextChange(field.id, e.target.value)}
                       maxLength={field.config?.maxLength}
                       rows={4}
-                      className="theme-input w-full p-3 bg-transparent resize-y min-h-[100px]"
+                      className="theme-input w-full p-3 bg-transparent resize-y min-h-25"
                     />
                   )}
 
