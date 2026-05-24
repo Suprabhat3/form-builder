@@ -28,6 +28,7 @@ export const fieldTypeEnum = pgEnum("field_type", [
 ]);
 export const analyticsEventEnum = pgEnum("analytics_event_type", ["VIEW", "START", "SUBMIT"]);
 export const emailStatusEnum = pgEnum("email_status", ["PENDING", "SENT", "FAILED"]);
+export const creatorNotificationModeEnum = pgEnum("creator_notification_mode", ["IMMEDIATE", "DIGEST"]);
 
 export const formsTable = pgTable("forms", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -61,6 +62,10 @@ export const formPublicSettingsTable = pgTable("form_public_settings", {
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   collectRespondentEmail: boolean("collect_respondent_email").notNull().default(false),
   showProgressBar: boolean("show_progress_bar").notNull().default(true),
+  creatorNotificationsEnabled: boolean("creator_notifications_enabled").notNull().default(false),
+  creatorNotificationMode: creatorNotificationModeEnum("creator_notification_mode").notNull().default("IMMEDIATE"),
+  creatorDigestIntervalHours: integer("creator_digest_interval_hours").notNull().default(1),
+  lastDigestSentAt: timestamp("last_digest_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -15,6 +15,13 @@
       "when": 1779163972315,
       "tag": "0001_absent_fenris",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779651000000,
+      "tag": "0002_notification_settings",
+      "breakpoints": true
     }
   ]
 }

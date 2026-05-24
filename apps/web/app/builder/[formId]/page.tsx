@@ -105,6 +105,15 @@ function FormSettings({ form }: { form: any }) {
   const [description, setDescription] = useState(form.description || "");
   const [themeKey, setThemeKey] = useState(form.themeKey);
   const [visibility, setVisibility] = useState(form.visibility);
+  const [creatorNotificationsEnabled, setCreatorNotificationsEnabled] = useState(
+    form.notificationSettings?.creatorNotificationsEnabled ?? false,
+  );
+  const [creatorNotificationMode, setCreatorNotificationMode] = useState(
+    form.notificationSettings?.creatorNotificationMode ?? "IMMEDIATE",
+  );
+  const [creatorDigestIntervalHours, setCreatorDigestIntervalHours] = useState<string>(
+    String(form.notificationSettings?.creatorDigestIntervalHours ?? 1),
+  );
   
   const { data: themes } = trpc.form.getThemeCatalog.useQuery();
   
@@ -127,6 +136,9 @@ function FormSettings({ form }: { form: any }) {
       description,
       themeKey: themeKey as any,
       visibility: visibility as any,
+      creatorNotificationsEnabled,
+      creatorNotificationMode: creatorNotificationMode as any,
+      creatorDigestIntervalHours: Number(creatorDigestIntervalHours) as 1 | 5 | 24,
     });
   };
 
@@ -180,6 +192,53 @@ function FormSettings({ form }: { form: any }) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label className="text-sm font-semibold text-slate-700">Email Notifications</Label>
+                <p className="text-xs text-slate-500">
+                  Notify you when new responses arrive.
+                </p>
+              </div>
+              <Switch
+                checked={creatorNotificationsEnabled}
+                onCheckedChange={setCreatorNotificationsEnabled}
+              />
+            </div>
+
+            {creatorNotificationsEnabled && (
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-700">Notification mode</Label>
+                  <Select value={creatorNotificationMode} onValueChange={setCreatorNotificationMode}>
+                    <SelectTrigger className="bg-slate-50 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="IMMEDIATE">Every submission</SelectItem>
+                      <SelectItem value="DIGEST">Digest summary</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {creatorNotificationMode === "DIGEST" && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-slate-700">Digest interval</Label>
+                    <Select value={creatorDigestIntervalHours} onValueChange={setCreatorDigestIntervalHours}>
+                      <SelectTrigger className="bg-slate-50 border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 hour</SelectItem>
+                        <SelectItem value="5">5 hours</SelectItem>
+                        <SelectItem value="24">24 hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
         <CardFooter className="bg-slate-50 border-t border-slate-100 py-4 flex justify-end">

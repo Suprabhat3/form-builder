@@ -2,10 +2,13 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, gte, inArray, sql } from "../../../../database";
 import {
   formFieldsTable,
+  formPublicSettingsTable,
   formResponsesTable,
   formResponseItemsTable,
   analyticsEventsTable,
+  emailLogsTable,
   formsTable,
+  usersTable,
   fieldTypeEnum,
   formStatusEnum,
   formVisibilityEnum,
@@ -19,6 +22,8 @@ import {
   formThemeCatalog,
   formThemeKeySchema,
   formVisibilitySchema,
+  creatorNotificationModeSchema,
+  creatorDigestIntervalHoursSchema,
   reorderFormFieldsInputSchema,
   updateFormFieldInputSchema,
   updateFormInputSchema,
@@ -26,6 +31,8 @@ import {
 import { z, zodUndefinedModel } from "../../schema";
 import { protectedProcedure, publicProcedure, router } from "../../trpc";
 import { db } from "../../../../database";
+import { resendClient } from "@repo/services/clients/resend";
+import { env } from "@repo/services/env";
 
 function slugify(input: string): string {
   const cleaned = input
@@ -91,6 +98,59 @@ const recordAnalyticsEventInputSchema = z.object({
   source: z.string().optional().nullable(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildImmediateNotificationHtml(params: {
+  formTitle: string;
+  responseLink: string;
+  respondentName: string;
+  respondentEmail: string;
+  submittedAt: Date;
+}): string {
+  return `
+<div style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px;color:#0f172a;">
+  <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;">
+    <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;">Form Builder</div>
+    <h1 style="margin:8px 0 12px;font-size:22px;line-height:1.3;">New response received</h1>
+    <p style="margin:0 0 16px;color:#334155;">Your form <strong>${escapeHtml(params.formTitle)}</strong> just got a new submission.</p>
+    <div style="background:#f1f5f9;border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-size:13px;color:#334155;"><strong>Respondent:</strong> ${escapeHtml(params.respondentName)}</div>
+      <div style="font-size:13px;color:#334155;"><strong>Email:</strong> ${escapeHtml(params.respondentEmail)}</div>
+      <div style="font-size:13px;color:#334155;"><strong>Submitted:</strong> ${escapeHtml(params.submittedAt.toISOString())}</div>
+    </div>
+    <a href="${params.responseLink}" style="display:inline-block;padding:10px 16px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">
+      View responses
+    </a>
+  </div>
+</div>`;
+}
+
+function buildDigestNotificationHtml(params: {
+  formTitle: string;
+  count: number;
+  intervalHours: number;
+  responseLink: string;
+}): string {
+  return `
+<div style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px;color:#0f172a;">
+  <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;">
+    <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;">Form Builder Digest</div>
+    <h1 style="margin:8px 0 12px;font-size:22px;line-height:1.3;">${params.count} new responses in the last ${params.intervalHours} hour(s)</h1>
+    <p style="margin:0 0 16px;color:#334155;">Your form <strong>${escapeHtml(params.formTitle)}</strong> is getting activity.</p>
+    <a href="${params.responseLink}" style="display:inline-block;padding:10px 16px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">
+      Open responses dashboard
+    </a>
+  </div>
+</div>`;
+}
 
 export const formRouter = router({
   listPublic: publicProcedure
@@ -178,6 +238,10 @@ export const formRouter = router({
         })
         .returning({ id: formsTable.id, slug: formsTable.slug });
 
+      await db.insert(formPublicSettingsTable).values({
+        formId: inserted[0]!.id,
+      });
+
       return inserted[0]!;
     }),
 
@@ -236,6 +300,11 @@ export const formRouter = router({
         visibility: formVisibilitySchema,
         themeKey: formThemeKeySchema,
         updatedAt: z.date(),
+        notificationSettings: z.object({
+          creatorNotificationsEnabled: z.boolean(),
+          creatorNotificationMode: creatorNotificationModeSchema,
+          creatorDigestIntervalHours: creatorDigestIntervalHoursSchema,
+        }),
         fields: z.array(
           z.object({
             id: z.string().uuid(),
@@ -262,8 +331,12 @@ export const formRouter = router({
           visibility: formsTable.visibility,
           themeKey: formsTable.themeKey,
           updatedAt: formsTable.updatedAt,
+          creatorNotificationsEnabled: formPublicSettingsTable.creatorNotificationsEnabled,
+          creatorNotificationMode: formPublicSettingsTable.creatorNotificationMode,
+          creatorDigestIntervalHours: formPublicSettingsTable.creatorDigestIntervalHours,
         })
         .from(formsTable)
+        .leftJoin(formPublicSettingsTable, eq(formPublicSettingsTable.formId, formsTable.id))
         .where(and(eq(formsTable.id, input.formId), eq(formsTable.ownerId, ctx.user.id)))
         .limit(1);
 
@@ -290,6 +363,13 @@ export const formRouter = router({
         status: form[0].status as (typeof formStatusEnum.enumValues)[number],
         visibility: form[0].visibility as (typeof formVisibilityEnum.enumValues)[number],
         themeKey: form[0].themeKey as z.infer<typeof formThemeKeySchema>,
+        notificationSettings: {
+          creatorNotificationsEnabled: Boolean(form[0].creatorNotificationsEnabled ?? false),
+          creatorNotificationMode:
+            (form[0].creatorNotificationMode as z.infer<typeof creatorNotificationModeSchema> | null) ?? "IMMEDIATE",
+          creatorDigestIntervalHours:
+            (form[0].creatorDigestIntervalHours as z.infer<typeof creatorDigestIntervalHoursSchema> | null) ?? 1,
+        },
         fields: fields.map((f: (typeof fields)[number]) => ({
           ...f,
           type: f.type,
@@ -316,6 +396,38 @@ export const formRouter = router({
           updatedAt: new Date(),
         })
         .where(eq(formsTable.id, input.formId));
+
+      const shouldUpdateNotificationSettings =
+        input.creatorNotificationsEnabled !== undefined ||
+        input.creatorNotificationMode !== undefined ||
+        input.creatorDigestIntervalHours !== undefined;
+
+      if (shouldUpdateNotificationSettings) {
+        await db
+          .insert(formPublicSettingsTable)
+          .values({
+            formId: input.formId,
+            creatorNotificationsEnabled: input.creatorNotificationsEnabled ?? false,
+            creatorNotificationMode: input.creatorNotificationMode ?? "IMMEDIATE",
+            creatorDigestIntervalHours: input.creatorDigestIntervalHours ?? 1,
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: formPublicSettingsTable.formId,
+            set: {
+              ...(input.creatorNotificationsEnabled !== undefined
+                ? { creatorNotificationsEnabled: input.creatorNotificationsEnabled }
+                : {}),
+              ...(input.creatorNotificationMode !== undefined
+                ? { creatorNotificationMode: input.creatorNotificationMode }
+                : {}),
+              ...(input.creatorDigestIntervalHours !== undefined
+                ? { creatorDigestIntervalHours: input.creatorDigestIntervalHours }
+                : {}),
+              updatedAt: new Date(),
+            },
+          });
+      }
 
       return { success: true };
     }),
@@ -1194,6 +1306,122 @@ export const formRouter = router({
         sessionKey: input.sessionKey ?? null,
         metadata: {},
       });
+
+      const notificationContext = await db
+        .select({
+          formTitle: formsTable.title,
+          ownerEmail: usersTable.email,
+          ownerId: formsTable.ownerId,
+          creatorNotificationsEnabled: formPublicSettingsTable.creatorNotificationsEnabled,
+          creatorNotificationMode: formPublicSettingsTable.creatorNotificationMode,
+          creatorDigestIntervalHours: formPublicSettingsTable.creatorDigestIntervalHours,
+          lastDigestSentAt: formPublicSettingsTable.lastDigestSentAt,
+        })
+        .from(formsTable)
+        .innerJoin(usersTable, eq(usersTable.id, formsTable.ownerId))
+        .leftJoin(formPublicSettingsTable, eq(formPublicSettingsTable.formId, formsTable.id))
+        .where(eq(formsTable.id, input.formId))
+        .limit(1);
+
+      const notify = notificationContext[0];
+      if (notify?.creatorNotificationsEnabled && notify.ownerEmail) {
+        const responseLink = `${env.FRONTEND_URL}/dashboard/forms/${input.formId}/responses`;
+        const recipientName = input.respondentName?.trim() || "Anonymous";
+        const recipientEmail = input.respondentEmail?.trim() || "Not provided";
+        const mode = notify.creatorNotificationMode ?? "IMMEDIATE";
+        const digestIntervalHours = notify.creatorDigestIntervalHours ?? 1;
+
+        const sendAndTrackEmail = async (params: {
+          emailType: string;
+          subject: string;
+          html: string;
+          metadata: Record<string, unknown>;
+        }) => {
+          try {
+            const sent = await resendClient.emails.send({
+              from: env.RESEND_FROM_EMAIL,
+              to: notify.ownerEmail,
+              subject: params.subject,
+              html: params.html,
+            });
+
+            await db.insert(emailLogsTable).values({
+              formId: input.formId,
+              responseId,
+              recipientEmail: notify.ownerEmail,
+              emailType: params.emailType,
+              providerMessageId: sent.data?.id ?? null,
+              status: "SENT",
+              metadata: params.metadata,
+              sentAt: new Date(),
+            });
+          } catch (error) {
+            await db.insert(emailLogsTable).values({
+              formId: input.formId,
+              responseId,
+              recipientEmail: notify.ownerEmail,
+              emailType: params.emailType,
+              status: "FAILED",
+              errorMessage: error instanceof Error ? error.message : "Unknown email error",
+              metadata: params.metadata,
+            });
+          }
+        };
+
+        if (mode === "IMMEDIATE") {
+          await sendAndTrackEmail({
+            emailType: "creator_response_immediate",
+            subject: `New response on ${notify.formTitle}`,
+            html: buildImmediateNotificationHtml({
+              formTitle: notify.formTitle,
+              responseLink,
+              respondentName: recipientName,
+              respondentEmail: recipientEmail,
+              submittedAt: new Date(),
+            }),
+            metadata: {
+              mode: "IMMEDIATE",
+            },
+          });
+        } else {
+          const now = new Date();
+          const intervalMs = digestIntervalHours * 60 * 60 * 1000;
+          const lastDigest = notify.lastDigestSentAt ? new Date(notify.lastDigestSentAt) : null;
+          const shouldSendDigest = !lastDigest || now.getTime() - lastDigest.getTime() >= intervalMs;
+
+          if (shouldSendDigest) {
+            const digestFrom = lastDigest ?? new Date(now.getTime() - intervalMs);
+            const digestCountRows = await db
+              .select({ total: count(formResponsesTable.id) })
+              .from(formResponsesTable)
+              .where(and(eq(formResponsesTable.formId, input.formId), gte(formResponsesTable.submittedAt, digestFrom)));
+            const digestCount = Number(digestCountRows[0]?.total ?? 0);
+
+            if (digestCount > 0) {
+              await sendAndTrackEmail({
+                emailType: "creator_response_digest",
+                subject: `${digestCount} new responses on ${notify.formTitle}`,
+                html: buildDigestNotificationHtml({
+                  formTitle: notify.formTitle,
+                  count: digestCount,
+                  intervalHours: digestIntervalHours,
+                  responseLink,
+                }),
+                metadata: {
+                  mode: "DIGEST",
+                  intervalHours: digestIntervalHours,
+                  count: digestCount,
+                },
+              });
+
+              await db
+                .update(formPublicSettingsTable)
+                .set({ lastDigestSentAt: now, updatedAt: now })
+                .where(eq(formPublicSettingsTable.formId, input.formId));
+            }
+          }
+        }
+      }
 
       return { success: true, responseId };
     }),

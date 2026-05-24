@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const formStatusSchema = z.enum(["DRAFT", "PUBLISHED", "UNPUBLISHED", "ARCHIVED"]);
 export const formVisibilitySchema = z.enum(["PUBLIC", "UNLISTED"]);
+export const creatorNotificationModeSchema = z.enum(["IMMEDIATE", "DIGEST"]);
+export const creatorDigestIntervalHoursSchema = z.union([z.literal(1), z.literal(5), z.literal(24)]);
 
 export const fieldTypeSchema = z.enum([
   "SHORT_TEXT",
@@ -54,6 +56,9 @@ export const updateFormInputSchema = z.object({
   description: z.string().optional(),
   visibility: formVisibilitySchema.optional(),
   themeKey: formThemeKeySchema.optional(),
+  creatorNotificationsEnabled: z.boolean().optional(),
+  creatorNotificationMode: creatorNotificationModeSchema.optional(),
+  creatorDigestIntervalHours: creatorDigestIntervalHoursSchema.optional(),
 });
 
 export const formFieldIdInputSchema = z.object({
