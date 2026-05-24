@@ -1,135 +1,210 @@
-# Turborepo starter
+# Form Builder SaaS ZenForm (Hackathon Submission)
 
-This Turborepo starter is maintained by the Turborepo core team.
+Production-style Typeform-like SaaS built on a Turborepo monorepo with type-safe APIs, dynamic form schemas, public submissions, analytics, creator email notifications, and Scalar API docs.
 
-## Using this example
+## Elevator Pitch
 
-Run the following command:
+Creators can build dynamic forms, configure fields/validation, publish shareable links, collect responses from anyone (no login), and review analytics/responses from a protected dashboard.
 
-```sh
-npx create-turbo@latest
+## Stack (Required Technologies)
+
+- Monorepo: Turborepo
+- Frontend: Next.js (`apps/web`)
+- Backend: Express + tRPC (`apps/api`)
+- Validation: Zod
+- ORM/DB: Drizzle ORM + PostgreSQL (Neon-compatible)
+- API Documentation: Scalar + OpenAPI (generated from tRPC metadata)
+- Auth: JWT session flow with protected creator routes
+- Email: Resend (creator notifications)
+
+## Monorepo Layout
+
+- `apps/web`: landing, pricing, dashboard, builder, explore, public form pages
+- `apps/api`: tRPC server, OpenAPI JSON, Scalar docs, auth callbacks
+- `packages/database`: Drizzle schema + migrations
+- `packages/services`: auth/services/env/resend client
+- `packages/trpc`: routers, procedures, OpenAPI metadata
+
+## Core Product Features
+
+- Protected creator dashboard
+- Create/edit/publish/unpublish/archive forms
+- Dynamic fields with validation + required/optional controls
+- Field types: short text, long text, email, number, single select, multi select, checkbox, rating, date
+- Public submission without login
+- Visibility model:
+  - `PUBLIC`: listed on Explore
+  - `UNLISTED`: hidden from listings, direct-link access only
+- Response management:
+  - response list
+  - response detail with captured answers
+- Analytics:
+  - views, starts, submits
+  - conversion metrics
+  - activity time series
+  - field completion metrics
+- Explore page for public forms
+- Landing + pricing pages
+- Email notifications for creators:
+  - immediate per-response mode
+  - digest mode (`1h`, `5h`, `24h`)
+
+## Visibility Rules (Enforced)
+
+- Only `PUBLISHED + PUBLIC` forms appear in Explore/listings.
+- `UNLISTED` forms are never shown in public listings.
+- Both `PUBLIC` and `UNLISTED` published forms are accessible by direct URL.
+- Unpublished/archived forms reject public submissions.
+
+## API Documentation
+
+Scalar docs and OpenAPI spec are exposed by backend:
+
+- Scalar UI: `http://localhost:8000/docs`
+- OpenAPI JSON: `http://localhost:8000/openapi.json`
+
+All auth/health/form endpoints are documented with OpenAPI metadata in tRPC routers.
+
+## API Surface Summary
+
+### Health
+
+- `GET /api/health`
+
+### Auth
+
+- provider list
+- email verification send/verify
+- sign up/sign in (email)
+- sign in (Google)
+- refresh session
+- sign out
+- current user (`me`)
+
+### Forms
+
+- public listing and theme catalog
+- creator form CRUD + publish/unpublish/archive/delete
+- field add/update/reorder/remove
+- get by slug (public)
+- submit response (public)
+- analytics event capture (public)
+- analytics overview (creator)
+- responses list + detail (creator)
+
+## Email Notification Behavior
+
+Configured per form in builder settings:
+
+- notifications `enabled/disabled`
+- mode:
+  - `IMMEDIATE`: email on each new submission
+  - `DIGEST`: grouped summary email every `1h`, `5h`, or `24h`
+
+Emails are logged in `email_logs` with sent/failed status and metadata.
+
+## Local Setup
+
+## 1) Prerequisites
+
+- Node.js `>=18`
+- pnpm `9.x`
+- PostgreSQL/Neon database
+
+## 2) Install
+
+```bash
+pnpm install
 ```
 
-## What's inside?
+## 3) Environment
 
-This Turborepo includes the following packages/apps:
+Create root `.env` with required values:
 
-### Apps and Packages
+```env
+# database
+DATABASE_URL=postgresql://...
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+# web/api URLs
+FRONTEND_URL=http://localhost:3000
+BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000/trpc
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+# auth
+JWT_ACCESS_SECRET=...
+JWT_REFRESH_SECRET=...
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
 
-### Utilities
+# resend
+RESEND_API_KEY=...
+RESEND_FROM_EMAIL=verified-sender@yourdomain.com
 
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+# optional google oauth
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+GOOGLE_OAUTH_REDIRECT_URI=
 ```
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+## 4) Database Migration
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+```bash
+pnpm db:migrate
 ```
 
-### Develop
+(Equivalent direct command)
 
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+```bash
+cmd /c pnpm --dir packages/database exec drizzle-kit migrate
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+## 5) Run Apps
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```bash
+pnpm dev
 ```
 
-### Remote Caching
+Default ports:
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+- Web: `http://localhost:3000`
+- API: `http://localhost:8000`
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+## Quality/Architecture Notes
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+- Type-safe contracts shared across client/server with tRPC + Zod
+- Drizzle schema-first database modeling and SQL migrations
+- Clear separation of apps and shared packages inside monorepo
+- Public endpoints are anonymous-safe; creator operations are protected
+- Structured error handling and loading states across core flows
 
-```
-cd my-turborepo
+## Requirement Coverage (Evaluator-Friendly)
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
+- Turborepo monorepo: complete
+- Separate frontend/backend apps: complete
+- tRPC + Zod + Drizzle + Scalar: complete
+- Authenticated creator dashboard: complete
+- Dynamic form builder with required field types: complete
+- Public + unlisted visibility rules: complete
+- Public submission without login: complete
+- Response management + analytics: complete
+- Landing + pricing pages: complete
+- Creator email notifications/digests: complete
+- API docs route: complete
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
+## Current Gaps / Next Work
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+- Seed script with demo forms/responses/analytics
+- README demo credentials section (to be filled after seed)
+- Deployment URL + production credentials section
+- Optional hardening: stronger rate limits/spam defenses, E2E tests
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+## Demo Credentials (To Fill)
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
+- Creator Email: `TBD`
+- Creator Password: `TBD`
+- Deployed URL: `TBD`
+- Scalar Docs URL (deployed): `TBD`
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
+## Repository Origin
 
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+Starter base: `https://github.com/piyushgarg-dev/trpc-monorepo`

@@ -33,6 +33,7 @@ import { protectedProcedure, publicProcedure, router } from "../../trpc";
 import { db } from "../../../../database";
 import { resendClient } from "@repo/services/clients/resend";
 import { env } from "@repo/services/env";
+import { generatePath } from "../../utils/path-generator";
 
 function slugify(input: string): string {
   const cleaned = input
@@ -88,6 +89,8 @@ function fieldKeyFromType(type: (typeof fieldTypeEnum.enumValues)[number], idx: 
 }
 
 const analyticsEventTypeSchema = z.enum(["VIEW", "START", "SUBMIT"]);
+const TAGS = ["Forms"];
+const getPath = generatePath("/forms");
 
 const recordAnalyticsEventInputSchema = z.object({
   formId: z.string().uuid(),
@@ -154,6 +157,7 @@ function buildDigestNotificationHtml(params: {
 
 export const formRouter = router({
   listPublic: publicProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/public"), tags: TAGS } })
     .input(zodUndefinedModel)
     .output(
       z.array(
@@ -203,6 +207,7 @@ export const formRouter = router({
       }));
     }),
   getThemeCatalog: publicProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/themes"), tags: TAGS } })
     .input(zodUndefinedModel)
     .output(
       z.array(
@@ -216,6 +221,7 @@ export const formRouter = router({
     .query(() => [...formThemeCatalog]),
 
   create: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath(""), tags: TAGS } })
     .input(createFormInputSchema)
     .output(
       z.object({
@@ -246,6 +252,7 @@ export const formRouter = router({
     }),
 
   listMine: protectedProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/mine"), tags: TAGS } })
     .input(zodUndefinedModel)
     .output(
       z.array(
@@ -289,6 +296,7 @@ export const formRouter = router({
     }),
 
   getById: protectedProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/{formId}"), tags: TAGS } })
     .input(formIdInputSchema)
     .output(
       z.object({
@@ -379,6 +387,7 @@ export const formRouter = router({
     }),
 
   update: protectedProcedure
+    .meta({ openapi: { method: "PATCH", path: getPath("/{formId}"), tags: TAGS } })
     .input(updateFormInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
@@ -433,6 +442,7 @@ export const formRouter = router({
     }),
 
   publish: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/{formId}/publish"), tags: TAGS } })
     .input(formIdInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
@@ -454,6 +464,7 @@ export const formRouter = router({
     }),
 
   unpublish: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/{formId}/unpublish"), tags: TAGS } })
     .input(formIdInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
@@ -469,6 +480,7 @@ export const formRouter = router({
     }),
 
   archive: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/{formId}/archive"), tags: TAGS } })
     .input(formIdInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
@@ -485,6 +497,7 @@ export const formRouter = router({
     }),
 
   delete: protectedProcedure
+    .meta({ openapi: { method: "DELETE", path: getPath("/{formId}"), tags: TAGS } })
     .input(formIdInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
@@ -501,6 +514,7 @@ export const formRouter = router({
     }),
 
   addField: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/{formId}/fields"), tags: TAGS } })
     .input(addFormFieldInputSchema)
     .output(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
@@ -535,6 +549,7 @@ export const formRouter = router({
     }),
 
   updateField: protectedProcedure
+    .meta({ openapi: { method: "PATCH", path: getPath("/{formId}/fields/{fieldId}"), tags: TAGS } })
     .input(updateFormFieldInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
@@ -566,6 +581,7 @@ export const formRouter = router({
     }),
 
   reorderFields: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/{formId}/fields/reorder"), tags: TAGS } })
     .input(reorderFormFieldsInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
@@ -599,6 +615,7 @@ export const formRouter = router({
     }),
 
   removeField: protectedProcedure
+    .meta({ openapi: { method: "DELETE", path: getPath("/{formId}/fields/{fieldId}"), tags: TAGS } })
     .input(formFieldIdInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
@@ -631,6 +648,7 @@ export const formRouter = router({
     }),
 
   getBySlug: publicProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/slug/{slug}"), tags: TAGS } })
     .input(z.object({ slug: z.string() }))
     .output(
       z.object({
@@ -708,6 +726,7 @@ export const formRouter = router({
     }),
 
   recordAnalyticsEvent: publicProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/analytics/event"), tags: TAGS } })
     .input(recordAnalyticsEventInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input }) => {
@@ -738,6 +757,7 @@ export const formRouter = router({
 
   // Temporary backwards-compatible alias for stale cached clients with a misspelled path.
   recordAnalyticsEven: publicProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/analytics/even"), tags: TAGS } })
     .input(recordAnalyticsEventInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input }) => {
@@ -767,6 +787,7 @@ export const formRouter = router({
     }),
 
   getAnalyticsOverview: protectedProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/{formId}/analytics"), tags: TAGS } })
     .input(
       z.object({
         formId: z.string().uuid(),
@@ -1067,6 +1088,7 @@ export const formRouter = router({
     }),
 
   getResponses: protectedProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/{formId}/responses"), tags: TAGS } })
     .input(z.object({ formId: z.string().uuid() }))
     .output(
       z.array(
@@ -1151,6 +1173,7 @@ export const formRouter = router({
     }),
 
   getResponseDetail: protectedProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/{formId}/responses/{responseId}"), tags: TAGS } })
     .input(
       z.object({
         formId: z.string().uuid(),
@@ -1221,6 +1244,7 @@ export const formRouter = router({
     }),
 
   submitResponse: publicProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/{formId}/submit"), tags: TAGS } })
     .input(
       z.object({
         formId: z.string().uuid(),
