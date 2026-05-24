@@ -13,7 +13,7 @@ import {
 } from "~/lib/auth-session";
 
 const NAV_LINKS = [
-  { label: "Marketplace", href: "#" },
+  { label: "Explore", href: "/explore" },
   { label: "Features", href: "#features" },
   { label: "Templates", href: "/templates" },
   { label: "Pricing", href: "#pricing" },
@@ -108,7 +108,7 @@ export function TopNavBar() {
                 className="relative px-3.5 py-1.5 text-sm font-medium text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-low/70 transition-all duration-150 group"
               >
                 <span className="relative z-10">{label}</span>
-                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-[2px] w-0 group-hover:w-5 rounded-full bg-primary transition-all duration-200" />
+                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-0 group-hover:w-5 rounded-full bg-primary transition-all duration-200" />
               </Link>
             ))}
           </div>
@@ -255,7 +255,7 @@ export function TopNavBar() {
               aria-expanded={mobileMenuOpen}
               className="flex items-center justify-center w-9 h-9 rounded-xl border border-outline-variant/30 bg-surface-container-lowest/80 text-on-surface hover:border-primary/30 hover:text-primary transition-all duration-200"
             >
-              <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+              <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
                 {mobileMenuOpen ? (
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 ) : (
@@ -270,7 +270,7 @@ export function TopNavBar() {
         <div
           className={[
             "md:hidden overflow-hidden transition-all duration-300 ease-in-out",
-            mobileMenuOpen ? "max-h-[420px] opacity-100" : "max-h-0 opacity-0",
+            mobileMenuOpen ? "max-h-105 opacity-100" : "max-h-0 opacity-0",
           ].join(" ")}
         >
           <div className="px-4 pb-4 pt-1 flex flex-col gap-1 border-t border-outline-variant/20">

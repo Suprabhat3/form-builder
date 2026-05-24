@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, desc, eq } from "../../../../database";
+import { and, asc, count, desc, eq, gte, sql } from "../../../../database";
 import {
   formFieldsTable,
   formResponsesTable,
@@ -80,7 +80,58 @@ function fieldKeyFromType(type: (typeof fieldTypeEnum.enumValues)[number], idx: 
   return `${prefix}_${idx}`;
 }
 
+const analyticsEventTypeSchema = z.enum(["VIEW", "START", "SUBMIT"]);
+
 export const formRouter = router({
+  listPublic: publicProcedure
+    .input(zodUndefinedModel)
+    .output(
+      z.array(
+        z.object({
+          id: z.string().uuid(),
+          title: z.string(),
+          description: z.string().nullable(),
+          slug: z.string(),
+          themeKey: formThemeKeySchema,
+          visibility: formVisibilitySchema,
+          status: formStatusSchema,
+          responseCount: z.number().int().nonnegative(),
+          updatedAt: z.date(),
+        }),
+      ),
+    )
+    .query(async () => {
+      const rows = await db
+        .select({
+          id: formsTable.id,
+          title: formsTable.title,
+          description: formsTable.description,
+          slug: formsTable.slug,
+          themeKey: formsTable.themeKey,
+          visibility: formsTable.visibility,
+          status: formsTable.status,
+          updatedAt: formsTable.updatedAt,
+          responseCount: count(formResponsesTable.id),
+        })
+        .from(formsTable)
+        .leftJoin(formResponsesTable, eq(formResponsesTable.formId, formsTable.id))
+        .where(
+          and(
+            eq(formsTable.status, "PUBLISHED"),
+            eq(formsTable.visibility, "PUBLIC"),
+          ),
+        )
+        .groupBy(formsTable.id)
+        .orderBy(desc(formsTable.updatedAt));
+
+      return rows.map((row: (typeof rows)[number]) => ({
+        ...row,
+        themeKey: row.themeKey as z.infer<typeof formThemeKeySchema>,
+        visibility: row.visibility as z.infer<typeof formVisibilitySchema>,
+        status: row.status as z.infer<typeof formStatusSchema>,
+        responseCount: Number(row.responseCount ?? 0),
+      }));
+    }),
   getThemeCatalog: publicProcedure
     .input(zodUndefinedModel)
     .output(
@@ -534,12 +585,381 @@ export const formRouter = router({
       };
     }),
 
+  recordAnalyticsEvent: publicProcedure
+    .input(
+      z.object({
+        formId: z.string().uuid(),
+        eventType: analyticsEventTypeSchema.refine((value) => value !== "SUBMIT", {
+          message: "SUBMIT is recorded automatically",
+        }),
+        sessionKey: z.string().optional().nullable(),
+        source: z.string().optional().nullable(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+      }),
+    )
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input }) => {
+      const form = await db
+        .select({ id: formsTable.id, status: formsTable.status })
+        .from(formsTable)
+        .where(eq(formsTable.id, input.formId))
+        .limit(1);
+
+      if (!form[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Form not found" });
+      }
+
+      if (form[0].status !== "PUBLISHED") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Analytics events require a published form" });
+      }
+
+      await db.insert(analyticsEventsTable).values({
+        formId: input.formId,
+        eventType: input.eventType,
+        sessionKey: input.sessionKey ?? null,
+        source: input.source ?? null,
+        metadata: input.metadata ?? {},
+      });
+
+      return { success: true };
+    }),
+
+  getAnalyticsOverview: protectedProcedure
+    .input(
+      z.object({
+        formId: z.string().uuid(),
+        rangeDays: z.number().int().min(1).max(365).default(30),
+      }),
+    )
+    .output(
+      z.object({
+        form: z.object({
+          id: z.string().uuid(),
+          title: z.string(),
+          slug: z.string(),
+          status: formStatusSchema,
+          visibility: formVisibilitySchema,
+          themeKey: formThemeKeySchema,
+        }),
+        totals: z.object({
+          views: z.number().int().nonnegative(),
+          starts: z.number().int().nonnegative(),
+          submits: z.number().int().nonnegative(),
+        }),
+        conversion: z.object({
+          viewToSubmit: z.number().nonnegative(),
+          startToSubmit: z.number().nonnegative(),
+        }),
+        series: z.array(
+          z.object({
+            date: z.string(),
+            views: z.number().int().nonnegative(),
+            starts: z.number().int().nonnegative(),
+            submits: z.number().int().nonnegative(),
+          }),
+        ),
+        fields: z.array(
+          z.object({
+            id: z.string().uuid(),
+            label: z.string(),
+            type: z.string(),
+            required: z.boolean(),
+            answeredCount: z.number().int().nonnegative(),
+            completionRate: z.number().nonnegative(),
+          }),
+        ),
+        recentResponses: z.array(
+          z.object({
+            id: z.string().uuid(),
+            submittedAt: z.date(),
+            respondentEmail: z.string().nullable(),
+            respondentName: z.string().nullable(),
+            itemCount: z.number().int().nonnegative(),
+          }),
+        ),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      await getOwnedFormOrThrow(input.formId, ctx.user.id);
+
+      const form = await db
+        .select({
+          id: formsTable.id,
+          title: formsTable.title,
+          slug: formsTable.slug,
+          status: formsTable.status,
+          visibility: formsTable.visibility,
+          themeKey: formsTable.themeKey,
+        })
+        .from(formsTable)
+        .where(eq(formsTable.id, input.formId))
+        .limit(1);
+
+      if (!form[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Form not found" });
+      }
+
+      const rangeStart = new Date();
+      rangeStart.setDate(rangeStart.getDate() - input.rangeDays + 1);
+      rangeStart.setHours(0, 0, 0, 0);
+
+      const totalsRows = await db
+        .select({
+          eventType: analyticsEventsTable.eventType,
+          total: count(analyticsEventsTable.id),
+        })
+        .from(analyticsEventsTable)
+        .where(and(eq(analyticsEventsTable.formId, input.formId), gte(analyticsEventsTable.createdAt, rangeStart)))
+        .groupBy(analyticsEventsTable.eventType);
+
+      const totals = totalsRows.reduce(
+        (acc, row) => {
+          const key = row.eventType as (typeof analyticsEventTypeSchema.enumValues)[number];
+          if (key === "VIEW") acc.views = Number(row.total ?? 0);
+          if (key === "START") acc.starts = Number(row.total ?? 0);
+          if (key === "SUBMIT") acc.submits = Number(row.total ?? 0);
+          return acc;
+        },
+        { views: 0, starts: 0, submits: 0 },
+      );
+
+      const seriesRows = await db
+        .select({
+          day: sql<string>`to_char(date_trunc('day', ${analyticsEventsTable.createdAt}), 'YYYY-MM-DD')`.as(
+            "day",
+          ),
+          eventType: analyticsEventsTable.eventType,
+          total: count(analyticsEventsTable.id),
+        })
+        .from(analyticsEventsTable)
+        .where(and(eq(analyticsEventsTable.formId, input.formId), gte(analyticsEventsTable.createdAt, rangeStart)))
+        .groupBy(sql`date_trunc('day', ${analyticsEventsTable.createdAt})`, analyticsEventsTable.eventType)
+        .orderBy(asc(sql`date_trunc('day', ${analyticsEventsTable.createdAt})`));
+
+      const seriesMap = new Map<string, { views: number; starts: number; submits: number }>();
+      for (const row of seriesRows) {
+        const day = row.day;
+        if (!seriesMap.has(day)) {
+          seriesMap.set(day, { views: 0, starts: 0, submits: 0 });
+        }
+        const bucket = seriesMap.get(day)!;
+        if (row.eventType === "VIEW") bucket.views = Number(row.total ?? 0);
+        if (row.eventType === "START") bucket.starts = Number(row.total ?? 0);
+        if (row.eventType === "SUBMIT") bucket.submits = Number(row.total ?? 0);
+      }
+
+      const series: { date: string; views: number; starts: number; submits: number }[] = [];
+      const cursor = new Date(rangeStart);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      while (cursor <= today) {
+        const key = cursor.toISOString().slice(0, 10);
+        const bucket = seriesMap.get(key) ?? { views: 0, starts: 0, submits: 0 };
+        series.push({ date: key, ...bucket });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      const responseCountRows = await db
+        .select({ total: count(formResponsesTable.id) })
+        .from(formResponsesTable)
+        .where(eq(formResponsesTable.formId, input.formId));
+
+      const totalResponses = Number(responseCountRows[0]?.total ?? 0);
+
+      const fields = await db
+        .select({
+          id: formFieldsTable.id,
+          label: formFieldsTable.label,
+          type: formFieldsTable.type,
+          required: formFieldsTable.required,
+        })
+        .from(formFieldsTable)
+        .where(eq(formFieldsTable.formId, input.formId))
+        .orderBy(asc(formFieldsTable.position), asc(formFieldsTable.createdAt));
+
+      const fieldCounts = await db
+        .select({
+          fieldId: formResponseItemsTable.fieldId,
+          answeredCount: sql<number>`count(*) filter (where ${formResponseItemsTable.value} is not null)`.as(
+            "answered_count",
+          ),
+        })
+        .from(formResponseItemsTable)
+        .innerJoin(formFieldsTable, eq(formResponseItemsTable.fieldId, formFieldsTable.id))
+        .where(eq(formFieldsTable.formId, input.formId))
+        .groupBy(formResponseItemsTable.fieldId);
+
+      const fieldCountMap = new Map(
+        fieldCounts.map((row) => [row.fieldId, Number(row.answeredCount ?? 0)]),
+      );
+
+      const fieldsWithMetrics = fields.map((field) => {
+        const answeredCount = fieldCountMap.get(field.id) ?? 0;
+        const completionRate = totalResponses > 0 ? answeredCount / totalResponses : 0;
+        return {
+          id: field.id,
+          label: field.label,
+          type: field.type,
+          required: field.required,
+          answeredCount,
+          completionRate,
+        };
+      });
+
+      const recentResponses = await db
+        .select({
+          id: formResponsesTable.id,
+          submittedAt: formResponsesTable.submittedAt,
+          respondentEmail: formResponsesTable.respondentEmail,
+          respondentName: formResponsesTable.respondentName,
+          itemCount: count(formResponseItemsTable.id),
+        })
+        .from(formResponsesTable)
+        .leftJoin(formResponseItemsTable, eq(formResponseItemsTable.responseId, formResponsesTable.id))
+        .where(eq(formResponsesTable.formId, input.formId))
+        .groupBy(formResponsesTable.id)
+        .orderBy(desc(formResponsesTable.submittedAt))
+        .limit(8);
+
+      const viewToSubmit = totals.views > 0 ? totals.submits / totals.views : 0;
+      const startToSubmit = totals.starts > 0 ? totals.submits / totals.starts : 0;
+
+      return {
+        form: {
+          ...form[0],
+          status: form[0].status as z.infer<typeof formStatusSchema>,
+          visibility: form[0].visibility as z.infer<typeof formVisibilitySchema>,
+          themeKey: form[0].themeKey as z.infer<typeof formThemeKeySchema>,
+        },
+        totals,
+        conversion: {
+          viewToSubmit,
+          startToSubmit,
+        },
+        series,
+        fields: fieldsWithMetrics,
+        recentResponses: recentResponses.map((row) => ({
+          ...row,
+          itemCount: Number(row.itemCount ?? 0),
+        })),
+      };
+    }),
+
+  getResponses: protectedProcedure
+    .input(z.object({ formId: z.string().uuid() }))
+    .output(
+      z.array(
+        z.object({
+          id: z.string().uuid(),
+          submittedAt: z.date(),
+          respondentEmail: z.string().nullable(),
+          respondentName: z.string().nullable(),
+          itemCount: z.number().int().nonnegative(),
+        }),
+      ),
+    )
+    .query(async ({ input, ctx }) => {
+      await getOwnedFormOrThrow(input.formId, ctx.user.id);
+
+      const responses = await db
+        .select({
+          id: formResponsesTable.id,
+          submittedAt: formResponsesTable.submittedAt,
+          respondentEmail: formResponsesTable.respondentEmail,
+          respondentName: formResponsesTable.respondentName,
+          itemCount: count(formResponseItemsTable.id),
+        })
+        .from(formResponsesTable)
+        .leftJoin(formResponseItemsTable, eq(formResponseItemsTable.responseId, formResponsesTable.id))
+        .where(eq(formResponsesTable.formId, input.formId))
+        .groupBy(formResponsesTable.id)
+        .orderBy(desc(formResponsesTable.submittedAt))
+        .limit(50);
+
+      return responses.map((row: (typeof responses)[number]) => ({
+        ...row,
+        itemCount: Number(row.itemCount ?? 0),
+      }));
+    }),
+
+  getResponseDetail: protectedProcedure
+    .input(
+      z.object({
+        formId: z.string().uuid(),
+        responseId: z.string().uuid(),
+      }),
+    )
+    .output(
+      z.object({
+        response: z.object({
+          id: z.string().uuid(),
+          submittedAt: z.date(),
+          respondentEmail: z.string().nullable(),
+          respondentName: z.string().nullable(),
+        }),
+        items: z.array(
+          z.object({
+            id: z.string().uuid(),
+            fieldId: z.string().uuid(),
+            fieldKey: z.string(),
+            label: z.string(),
+            type: z.string(),
+            required: z.boolean(),
+            value: z.unknown(),
+          }),
+        ),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      await getOwnedFormOrThrow(input.formId, ctx.user.id);
+
+      const response = await db
+        .select({
+          id: formResponsesTable.id,
+          submittedAt: formResponsesTable.submittedAt,
+          respondentEmail: formResponsesTable.respondentEmail,
+          respondentName: formResponsesTable.respondentName,
+        })
+        .from(formResponsesTable)
+        .where(and(eq(formResponsesTable.id, input.responseId), eq(formResponsesTable.formId, input.formId)))
+        .limit(1);
+
+      if (!response[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Response not found" });
+      }
+
+      const items = await db
+        .select({
+          id: formResponseItemsTable.id,
+          fieldId: formResponseItemsTable.fieldId,
+          fieldKey: formResponseItemsTable.fieldKey,
+          value: formResponseItemsTable.value,
+          label: formFieldsTable.label,
+          type: formFieldsTable.type,
+          required: formFieldsTable.required,
+        })
+        .from(formResponseItemsTable)
+        .innerJoin(formFieldsTable, eq(formFieldsTable.id, formResponseItemsTable.fieldId))
+        .where(eq(formResponseItemsTable.responseId, input.responseId))
+        .orderBy(asc(formFieldsTable.position), asc(formFieldsTable.createdAt));
+
+      return {
+        response: response[0],
+        items: items.map((item: (typeof items)[number]) => ({
+          ...item,
+          type: item.type,
+        })),
+      };
+    }),
+
   submitResponse: publicProcedure
     .input(
       z.object({
         formId: z.string().uuid(),
         respondentEmail: z.string().email().optional().nullable(),
         respondentName: z.string().optional().nullable(),
+        sessionKey: z.string().optional().nullable(),
         answers: z.array(
           z.object({
             fieldId: z.string().uuid(),
@@ -616,6 +1036,7 @@ export const formRouter = router({
         formId: input.formId,
         responseId,
         eventType: "SUBMIT",
+        sessionKey: input.sessionKey ?? null,
         metadata: {},
       });
 

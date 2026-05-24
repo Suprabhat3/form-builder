@@ -18,7 +18,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { PlusIcon, SettingsIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, ExternalLinkIcon, Share2Icon } from "lucide-react";
+import { PlusIcon, SettingsIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, ExternalLinkIcon, Share2Icon, BarChart3Icon, ClipboardListIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { toast } from "sonner";
 
@@ -478,6 +478,24 @@ function FormsList() {
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium text-slate-800">{form.responseCount}</span> responses
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-center gap-2"
+              onClick={() => router.push(`/dashboard/forms/${form.id}/analytics`)}
+            >
+              <BarChart3Icon className="w-4 h-4" /> Analytics
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-center gap-2"
+              onClick={() => router.push(`/dashboard/forms/${form.id}/responses`)}
+            >
+              <ClipboardListIcon className="w-4 h-4" /> Responses
+            </Button>
             
             {form.status === "PUBLISHED" && (
               <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50/80 border text-xs">

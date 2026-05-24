@@ -43,7 +43,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
             </p>
           </div>
           <div className="flex flex-col gap-2 w-full pt-2">
-            <Button onClick={() => router.push("/")} className="w-full h-11 bg-primary text-primary-foreground font-semibold rounded-xl flex items-center justify-center gap-2 hover:translate-y-[-1px] transition-transform duration-150">
+            <Button onClick={() => router.push("/")} className="w-full h-11 bg-primary text-primary-foreground font-semibold rounded-xl flex items-center justify-center gap-2 hover:-translate-y-px transition-transform duration-150">
               <ArrowLeftIcon className="w-4 h-4" /> Go to Homepage
             </Button>
           </div>

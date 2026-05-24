@@ -1,5 +1,4 @@
-"use client";
-
+"use client"
 import Image from "next/image";
 import Link from "next/link";
 
@@ -7,10 +6,10 @@ export function Footer() {
   return (
     <footer className="bg-surface-container-lowest dark:bg-background border-t border-outline-variant/40 dark:border-outline/20 full-width transition-all duration-300">
       <div className="max-w-7xl mx-auto px-margin pt-xl pb-lg">
-        
+
         {/* Main Grid */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-lg mb-xl">
-          
+
           {/* Brand Info & Newsletter */}
           <div className="col-span-2 flex flex-col items-start gap-md">
             <Link
@@ -20,13 +19,13 @@ export function Footer() {
               <Image src="/logo.png" alt="Logo" width={28} height={28} className="rounded-full" />
               <span>ZenForm</span>
             </Link>
-            
-            <p className="text-body-sm text-on-surface-variant max-w-[240px] leading-[1.5]">
+
+            <p className="text-body-sm text-on-surface-variant max-w-60 leading-normal">
               Form building crafted like art. Create high-converting interfaces with pixel-perfect control.
             </p>
 
             {/* Newsletter Subscription */}
-            <div className="w-full max-w-[280px] mt-xs">
+            <div className="w-full max-w-70 mt-xs">
               <span className="text-[10px] font-bold text-on-surface uppercase tracking-wider block mb-2">
                 Subscribe to our newsletter
               </span>

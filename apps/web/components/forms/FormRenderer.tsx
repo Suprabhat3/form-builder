@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -41,6 +41,9 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const [submitted, setSubmitted] = useState(false);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const sessionKeyRef = useRef<string | null>(null);
+  const hasStartedRef = useRef(false);
   
   // Respondent Info (Required if settings require, or just nice-to-have)
   const [respondentEmail, setRespondentEmail] = useState("");
@@ -56,6 +59,42 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
     },
   });
 
+  const recordAnalyticsEvent = trpc.form.recordAnalyticsEvent.useMutation();
+
+  useEffect(() => {
+    if (isPreview) return;
+
+    if (!sessionKeyRef.current && typeof window !== "undefined") {
+      const storageKey = `form_session_${form.id}`;
+      let sessionKey = window.sessionStorage.getItem(storageKey);
+      if (!sessionKey) {
+        sessionKey = typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        window.sessionStorage.setItem(storageKey, sessionKey);
+      }
+      sessionKeyRef.current = sessionKey;
+    }
+
+    recordAnalyticsEvent.mutate({
+      formId: form.id,
+      eventType: "VIEW",
+      sessionKey: sessionKeyRef.current,
+      source: "public",
+    });
+  }, [form.id, isPreview, recordAnalyticsEvent]);
+
+  const trackStart = () => {
+    if (isPreview || hasStartedRef.current) return;
+    hasStartedRef.current = true;
+    recordAnalyticsEvent.mutate({
+      formId: form.id,
+      eventType: "START",
+      sessionKey: sessionKeyRef.current,
+      source: "public",
+    });
+  };
+
   // Calculate Progress
   const totalFields = form.fields.length;
   const answeredFieldsCount = form.fields.filter((field) => {
@@ -67,6 +106,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const progressPercent = totalFields > 0 ? Math.round((answeredFieldsCount / totalFields) * 100) : 0;
 
   const handleTextChange = (fieldId: string, val: string) => {
+    trackStart();
     setAnswers((prev) => ({ ...prev, [fieldId]: val }));
     if (errors[fieldId]) {
       setErrors((prev) => {
@@ -78,6 +118,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   };
 
   const handleSingleSelect = (fieldId: string, option: string) => {
+    trackStart();
     setAnswers((prev) => ({ ...prev, [fieldId]: option }));
     if (errors[fieldId]) {
       setErrors((prev) => {
@@ -89,6 +130,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   };
 
   const handleMultiSelect = (fieldId: string, option: string) => {
+    trackStart();
     const current = (answers[fieldId] as string[]) || [];
     let next: string[];
     if (current.includes(option)) {
@@ -107,6 +149,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   };
 
   const handleCheckboxToggle = (fieldId: string, checked: boolean) => {
+    trackStart();
     setAnswers((prev) => ({ ...prev, [fieldId]: checked }));
     if (errors[fieldId]) {
       setErrors((prev) => {
@@ -165,6 +208,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       formId: form.id,
       respondentEmail: respondentEmail || undefined,
       respondentName: respondentName || undefined,
+      sessionKey: sessionKeyRef.current,
       answers: submissionAnswers,
     });
   };
@@ -175,8 +219,8 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       case "anime-neon":
         return (
           <>
-            <div className="absolute top-[-10%] left-[-10%] w-[350px] h-[350px] rounded-full bg-pink-500/20 blur-[100px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[350px] h-[350px] rounded-full bg-cyan-500/20 blur-[100px] pointer-events-none" />
+            <div className="absolute top-[-10%] left-[-10%] w-87.5 h-87.5 rounded-full bg-pink-500/20 blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-87.5 h-87.5 rounded-full bg-cyan-500/20 blur-[100px] pointer-events-none" />
           </>
         );
       case "retro-arcade":
@@ -192,13 +236,13 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       case "startup-pitch":
         return (
           <>
-            <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-indigo-200/40 rounded-full blur-[80px] pointer-events-none" />
-            <div className="absolute bottom-10 left-0 w-[200px] h-[200px] bg-purple-200/40 rounded-full blur-[80px] pointer-events-none" />
+            <div className="absolute top-0 right-0 w-50 h-50 bg-indigo-200/40 rounded-full blur-[80px] pointer-events-none" />
+            <div className="absolute bottom-10 left-0 w-50 h-50 bg-purple-200/40 rounded-full blur-[80px] pointer-events-none" />
           </>
         );
       case "community-warm":
         return (
-          <div className="absolute bottom-[-50px] left-[-50px] w-[200px] h-[200px] bg-[#d84315]/5 rounded-full pointer-events-none blur-[40px]" />
+          <div className="absolute -bottom-12.5 -left-12.5 w-50 h-50 bg-[#d84315]/5 rounded-full pointer-events-none blur-2xl" />
         );
       default:
         return null;
@@ -217,7 +261,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       case "terminal-hacker":
         return <TerminalIcon className="w-16 h-16 text-[#00ff00]" />;
       case "startup-pitch":
-        return <SparklesIcon className="w-16 h-16 text-indigo-600 animate-spin" style={{ animationDuration: '3s' }} />;
+        return <SparklesIcon className="w-16 h-16 text-indigo-200 animate-spin" style={{ animationDuration: '3s' }} />;
       case "community-warm":
         return <HeartIcon className="w-16 h-16 text-[#2e7d32]" />;
       default:
@@ -227,9 +271,9 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
 
   if (submitted) {
     return (
-      <div className={`theme-container theme-${form.themeKey} flex items-center justify-center p-6 min-h-screen relative`}>
+      <div className={`theme-container theme-${form.themeKey} flex items-center justify-center px-4 py-8 min-h-screen relative`}>
         {renderThemeDecorators()}
-        <div className="theme-card max-w-lg w-full p-8 md:p-12 text-center flex flex-col items-center gap-6 relative z-10 animate-in fade-in-50 zoom-in-95 duration-300">
+        <div className="theme-card max-w-2xl w-full p-8 md:p-12 text-center flex flex-col items-center gap-6 relative z-10 animate-in fade-in-50 zoom-in-95 duration-300">
           <div className="p-4 rounded-full bg-opacity-10 bg-primary flex justify-center items-center">
             {getThankYouIcon()}
           </div>
@@ -237,7 +281,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
             <h2 className="theme-title text-3xl font-extrabold tracking-tight mb-3">
               Thank you!
             </h2>
-            <p className="theme-muted text-sm max-w-sm mx-auto leading-relaxed">
+            <p className="theme-muted text-sm max-w-full mx-auto leading-relaxed">
               We've received your response for <strong>{form.title}</strong>.
             </p>
           </div>
