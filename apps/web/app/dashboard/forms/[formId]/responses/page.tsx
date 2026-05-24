@@ -120,6 +120,7 @@ function ResponsesContent({ params }: { params: Promise<{ formId: string }> }) {
                     <TableHead>Respondent</TableHead>
                     <TableHead>Submitted</TableHead>
                     <TableHead>Answers</TableHead>
+                    <TableHead>Latest inputs</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -141,6 +142,24 @@ function ResponsesContent({ params }: { params: Promise<{ formId: string }> }) {
                       </TableCell>
                       <TableCell className="font-semibold text-slate-800">
                         {response.itemCount}
+                      </TableCell>
+                      <TableCell className="max-w-md">
+                        <div className="space-y-1">
+                          {response.answers.slice(0, 3).map((answer) => (
+                            <p key={`${response.id}-${answer.fieldId}`} className="text-xs text-slate-600">
+                              <span className="font-medium text-slate-800">{answer.label}:</span>{" "}
+                              {formatValue(answer.value)}
+                            </p>
+                          ))}
+                          {response.answers.length === 0 && (
+                            <p className="text-xs text-slate-400">No captured answers</p>
+                          )}
+                          {response.answers.length > 3 && (
+                            <p className="text-[11px] text-slate-500">
+                              +{response.answers.length - 3} more
+                            </p>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -164,4 +183,11 @@ function ResponsesContent({ params }: { params: Promise<{ formId: string }> }) {
       </section>
     </main>
   );
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "-";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }

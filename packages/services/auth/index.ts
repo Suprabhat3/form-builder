@@ -1,6 +1,5 @@
 import { db, eq, and, gt, sql } from "@repo/database";
 import { usersTable, accountsTable, sessionsTable, verificationTable } from "@repo/database/schema";
-import { logger } from "@repo/logger";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
@@ -355,8 +354,7 @@ export class AuthService {
         .where(eq(usersTable.id, payload.sub))
         .limit(1);
       return user[0] ?? null;
-    } catch (error) {
-      logger.warn("Invalid access token", { error });
+    } catch {
       return null;
     }
   }

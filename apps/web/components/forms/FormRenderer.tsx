@@ -44,6 +44,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
 
   const sessionKeyRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
+  const viewedFormIdRef = useRef<string | null>(null);
   
   // Respondent Info (Required if settings require, or just nice-to-have)
   const [respondentEmail, setRespondentEmail] = useState("");
@@ -63,6 +64,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
 
   useEffect(() => {
     if (isPreview) return;
+    if (viewedFormIdRef.current === form.id) return;
 
     if (!sessionKeyRef.current && typeof window !== "undefined") {
       const storageKey = `form_session_${form.id}`;
@@ -82,7 +84,10 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       sessionKey: sessionKeyRef.current,
       source: "public",
     });
-  }, [form.id, isPreview, recordAnalyticsEvent]);
+    viewedFormIdRef.current = form.id;
+    // Intentionally track one VIEW event per page mount/form render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.id, isPreview]);
 
   const trackStart = () => {
     if (isPreview || hasStartedRef.current) return;

@@ -109,6 +109,7 @@ function CreateFormDialog({
       setTitle("");
       setDescription("");
       utils.form.listMine.invalidate();
+      utils.form.listPublic.invalidate();
       router.push(`/builder/${data.id}`);
     },
     onError: (err: { message: string }) => {
@@ -415,6 +416,7 @@ function FormsList() {
     onSuccess: (_data, variables) => {
       toast.success("Form published!");
       utils.form.listMine.invalidate();
+      utils.form.listPublic.invalidate();
       if (pendingShare?.id === variables.formId) {
         setShareTarget({ title: pendingShare.title, slug: pendingShare.slug });
         setShareOpen(true);
@@ -427,6 +429,7 @@ function FormsList() {
     onSuccess: () => {
       toast.success("Form unpublished!");
       utils.form.listMine.invalidate();
+      utils.form.listPublic.invalidate();
     },
   });
 
@@ -434,6 +437,7 @@ function FormsList() {
     onSuccess: () => {
       toast.success("Form archived!");
       utils.form.listMine.invalidate();
+      utils.form.listPublic.invalidate();
     },
   });
 

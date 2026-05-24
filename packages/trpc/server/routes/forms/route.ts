@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, desc, eq, gte, sql } from "../../../../database";
+import { and, asc, count, desc, eq, gte, inArray, sql } from "../../../../database";
 import {
   formFieldsTable,
   formResponsesTable,
@@ -81,6 +81,16 @@ function fieldKeyFromType(type: (typeof fieldTypeEnum.enumValues)[number], idx: 
 }
 
 const analyticsEventTypeSchema = z.enum(["VIEW", "START", "SUBMIT"]);
+
+const recordAnalyticsEventInputSchema = z.object({
+  formId: z.string().uuid(),
+  eventType: analyticsEventTypeSchema.refine((value) => value !== "SUBMIT", {
+    message: "SUBMIT is recorded automatically",
+  }),
+  sessionKey: z.string().optional().nullable(),
+  source: z.string().optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
 
 export const formRouter = router({
   listPublic: publicProcedure
@@ -586,17 +596,37 @@ export const formRouter = router({
     }),
 
   recordAnalyticsEvent: publicProcedure
-    .input(
-      z.object({
-        formId: z.string().uuid(),
-        eventType: analyticsEventTypeSchema.refine((value) => value !== "SUBMIT", {
-          message: "SUBMIT is recorded automatically",
-        }),
-        sessionKey: z.string().optional().nullable(),
-        source: z.string().optional().nullable(),
-        metadata: z.record(z.string(), z.unknown()).optional(),
-      }),
-    )
+    .input(recordAnalyticsEventInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input }) => {
+      const form = await db
+        .select({ id: formsTable.id, status: formsTable.status })
+        .from(formsTable)
+        .where(eq(formsTable.id, input.formId))
+        .limit(1);
+
+      if (!form[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Form not found" });
+      }
+
+      if (form[0].status !== "PUBLISHED") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Analytics events require a published form" });
+      }
+
+      await db.insert(analyticsEventsTable).values({
+        formId: input.formId,
+        eventType: input.eventType,
+        sessionKey: input.sessionKey ?? null,
+        source: input.source ?? null,
+        metadata: input.metadata ?? {},
+      });
+
+      return { success: true };
+    }),
+
+  // Temporary backwards-compatible alias for stale cached clients with a misspelled path.
+  recordAnalyticsEven: publicProcedure
+    .input(recordAnalyticsEventInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input }) => {
       const form = await db
@@ -675,6 +705,14 @@ export const formRouter = router({
             respondentEmail: z.string().nullable(),
             respondentName: z.string().nullable(),
             itemCount: z.number().int().nonnegative(),
+            answers: z.array(
+              z.object({
+                fieldId: z.string().uuid(),
+                fieldKey: z.string(),
+                label: z.string(),
+                value: z.unknown(),
+              }),
+            ),
           }),
         ),
       }),
@@ -712,9 +750,9 @@ export const formRouter = router({
         .where(and(eq(analyticsEventsTable.formId, input.formId), gte(analyticsEventsTable.createdAt, rangeStart)))
         .groupBy(analyticsEventsTable.eventType);
 
-      const totals = totalsRows.reduce(
+      const totalsFromEvents = totalsRows.reduce(
         (acc, row) => {
-          const key = row.eventType as (typeof analyticsEventTypeSchema.enumValues)[number];
+          const key = row.eventType as "VIEW" | "START" | "SUBMIT";
           if (key === "VIEW") acc.views = Number(row.total ?? 0);
           if (key === "START") acc.starts = Number(row.total ?? 0);
           if (key === "SUBMIT") acc.submits = Number(row.total ?? 0);
@@ -748,13 +786,33 @@ export const formRouter = router({
         if (row.eventType === "SUBMIT") bucket.submits = Number(row.total ?? 0);
       }
 
+      const submitSeriesRows = await db
+        .select({
+          day: sql<string>`to_char(date_trunc('day', ${formResponsesTable.submittedAt}), 'YYYY-MM-DD')`.as(
+            "day",
+          ),
+          total: count(formResponsesTable.id),
+        })
+        .from(formResponsesTable)
+        .where(and(eq(formResponsesTable.formId, input.formId), gte(formResponsesTable.submittedAt, rangeStart)))
+        .groupBy(sql`date_trunc('day', ${formResponsesTable.submittedAt})`);
+
+      for (const row of submitSeriesRows) {
+        const bucket = seriesMap.get(row.day) ?? { views: 0, starts: 0, submits: 0 };
+        bucket.submits = Number(row.total ?? 0);
+        seriesMap.set(row.day, bucket);
+      }
+
       const series: { date: string; views: number; starts: number; submits: number }[] = [];
       const cursor = new Date(rangeStart);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       while (cursor <= today) {
-        const key = cursor.toISOString().slice(0, 10);
+        const year = cursor.getFullYear();
+        const month = String(cursor.getMonth() + 1).padStart(2, "0");
+        const day = String(cursor.getDate()).padStart(2, "0");
+        const key = `${year}-${month}-${day}`;
         const bucket = seriesMap.get(key) ?? { views: 0, starts: 0, submits: 0 };
         series.push({ date: key, ...bucket });
         cursor.setDate(cursor.getDate() + 1);
@@ -766,6 +824,11 @@ export const formRouter = router({
         .where(eq(formResponsesTable.formId, input.formId));
 
       const totalResponses = Number(responseCountRows[0]?.total ?? 0);
+      const responsesInRangeRows = await db
+        .select({ total: count(formResponsesTable.id) })
+        .from(formResponsesTable)
+        .where(and(eq(formResponsesTable.formId, input.formId), gte(formResponsesTable.submittedAt, rangeStart)));
+      const submitsInRange = Number(responsesInRangeRows[0]?.total ?? 0);
 
       const fields = await db
         .select({
@@ -822,6 +885,50 @@ export const formRouter = router({
         .orderBy(desc(formResponsesTable.submittedAt))
         .limit(8);
 
+      const recentResponseIds = recentResponses.map((row) => row.id);
+      const recentResponseItems =
+        recentResponseIds.length === 0
+          ? []
+          : await db
+              .select({
+                responseId: formResponseItemsTable.responseId,
+                fieldId: formResponseItemsTable.fieldId,
+                fieldKey: formResponseItemsTable.fieldKey,
+                value: formResponseItemsTable.value,
+                label: formFieldsTable.label,
+                position: formFieldsTable.position,
+              })
+              .from(formResponseItemsTable)
+              .innerJoin(formFieldsTable, eq(formFieldsTable.id, formResponseItemsTable.fieldId))
+              .where(
+                and(
+                  eq(formFieldsTable.formId, input.formId),
+                  inArray(formResponseItemsTable.responseId, recentResponseIds),
+                ),
+              )
+              .orderBy(asc(formFieldsTable.position), asc(formResponseItemsTable.createdAt));
+
+      const answersByResponse = new Map<
+        string,
+        { fieldId: string; fieldKey: string; label: string; value: unknown }[]
+      >();
+      for (const item of recentResponseItems) {
+        const existing = answersByResponse.get(item.responseId) ?? [];
+        existing.push({
+          fieldId: item.fieldId,
+          fieldKey: item.fieldKey,
+          label: item.label,
+          value: item.value,
+        });
+        answersByResponse.set(item.responseId, existing);
+      }
+
+      const totals = {
+        views: totalsFromEvents.views,
+        starts: totalsFromEvents.starts,
+        submits: submitsInRange,
+      };
+
       const viewToSubmit = totals.views > 0 ? totals.submits / totals.views : 0;
       const startToSubmit = totals.starts > 0 ? totals.submits / totals.starts : 0;
 
@@ -842,6 +949,7 @@ export const formRouter = router({
         recentResponses: recentResponses.map((row) => ({
           ...row,
           itemCount: Number(row.itemCount ?? 0),
+          answers: answersByResponse.get(row.id) ?? [],
         })),
       };
     }),
@@ -856,6 +964,14 @@ export const formRouter = router({
           respondentEmail: z.string().nullable(),
           respondentName: z.string().nullable(),
           itemCount: z.number().int().nonnegative(),
+          answers: z.array(
+            z.object({
+              fieldId: z.string().uuid(),
+              fieldKey: z.string(),
+              label: z.string(),
+              value: z.unknown(),
+            }),
+          ),
         }),
       ),
     )
@@ -877,9 +993,48 @@ export const formRouter = router({
         .orderBy(desc(formResponsesTable.submittedAt))
         .limit(50);
 
+      const responseIds = responses.map((row) => row.id);
+      const answerItems =
+        responseIds.length === 0
+          ? []
+          : await db
+              .select({
+                responseId: formResponseItemsTable.responseId,
+                fieldId: formResponseItemsTable.fieldId,
+                fieldKey: formResponseItemsTable.fieldKey,
+                value: formResponseItemsTable.value,
+                label: formFieldsTable.label,
+                position: formFieldsTable.position,
+              })
+              .from(formResponseItemsTable)
+              .innerJoin(formFieldsTable, eq(formFieldsTable.id, formResponseItemsTable.fieldId))
+              .where(
+                and(
+                  eq(formFieldsTable.formId, input.formId),
+                  inArray(formResponseItemsTable.responseId, responseIds),
+                ),
+              )
+              .orderBy(asc(formFieldsTable.position), asc(formResponseItemsTable.createdAt));
+
+      const answersByResponse = new Map<
+        string,
+        { fieldId: string; fieldKey: string; label: string; value: unknown }[]
+      >();
+      for (const item of answerItems) {
+        const bucket = answersByResponse.get(item.responseId) ?? [];
+        bucket.push({
+          fieldId: item.fieldId,
+          fieldKey: item.fieldKey,
+          label: item.label,
+          value: item.value,
+        });
+        answersByResponse.set(item.responseId, bucket);
+      }
+
       return responses.map((row: (typeof responses)[number]) => ({
         ...row,
         itemCount: Number(row.itemCount ?? 0),
+        answers: answersByResponse.get(row.id) ?? [],
       }));
     }),
 

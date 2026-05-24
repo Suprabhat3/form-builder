@@ -101,7 +101,7 @@ function AnalyticsContent({ params }: { params: Promise<{ formId: string }> }) {
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Form analytics</p>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">{form.title}</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  /f/{form.slug} • {form.visibility.toLowerCase()} • {form.status.toLowerCase()}
+                  /f/{form.slug} | {form.visibility.toLowerCase()} | {form.status.toLowerCase()}
                 </p>
               </div>
             </div>
@@ -304,6 +304,14 @@ function AnalyticsContent({ params }: { params: Promise<{ formId: string }> }) {
                     <p className="text-xs text-slate-500">
                       {format(new Date(response.submittedAt), "PPpp")}
                     </p>
+                    <div className="mt-2 space-y-1">
+                      {response.answers.slice(0, 2).map((answer) => (
+                        <p key={`${response.id}-${answer.fieldId}`} className="text-xs text-slate-600">
+                          <span className="font-medium text-slate-800">{answer.label}:</span>{" "}
+                          {formatValue(answer.value)}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-emerald-600">{response.itemCount}</p>
@@ -344,4 +352,11 @@ function MetricCard({
       </CardContent>
     </Card>
   );
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "-";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }

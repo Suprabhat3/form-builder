@@ -19,7 +19,10 @@ const themeMetadata: Record<string, { bg: string; primary: string; secondary: st
 };
 
 export default function ExplorePage() {
-  const { data: forms, isLoading } = trpc.form.listPublic.useQuery();
+  const { data: forms, isLoading } = trpc.form.listPublic.useQuery(undefined, {
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
 
   return (
     <main className="min-h-screen bg-slate-50">

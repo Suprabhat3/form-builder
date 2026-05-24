@@ -26,7 +26,15 @@ export type AuthSessionPayload = {
 
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(ACCESS_TOKEN_KEY);
+  const token = window.localStorage.getItem(ACCESS_TOKEN_KEY);
+  if (!token) return null;
+
+  const expiryMs = getJwtExpiryMs(token);
+  if (expiryMs && expiryMs <= Date.now()) {
+    return null;
+  }
+
+  return token;
 }
 
 export function getRefreshToken(): string | null {

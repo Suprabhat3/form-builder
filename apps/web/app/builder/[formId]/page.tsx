@@ -113,6 +113,7 @@ function FormSettings({ form }: { form: any }) {
       toast.success("Settings saved");
       utils.form.getById.invalidate({ formId: form.id });
       utils.form.listMine.invalidate();
+      utils.form.listPublic.invalidate();
     },
     onError: (err: { message: string }) => {
       toast.error(err.message || "Failed to update settings");
