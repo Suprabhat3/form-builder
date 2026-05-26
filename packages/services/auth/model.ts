@@ -6,6 +6,7 @@ export const authUserSchema = z.object({
   name: z.string().min(1),
   image: z.string().nullable(),
   emailVerified: z.boolean(),
+  role: z.enum(["USER", "ADMIN"]),
 });
 
 export const authTokensOutputSchema = z.object({

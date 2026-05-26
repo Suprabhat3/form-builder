@@ -204,6 +204,7 @@ async function findUserByEmail(email: string): Promise<AuthUser | null> {
       name: usersTable.name,
       image: usersTable.image,
       emailVerified: usersTable.emailVerified,
+      role: usersTable.role,
     })
     .from(usersTable)
     .where(eq(usersTable.email, email.toLowerCase()))
@@ -248,6 +249,7 @@ export class AuthService {
         name: usersTable.name,
         image: usersTable.image,
         emailVerified: usersTable.emailVerified,
+        role: usersTable.role,
       });
 
     const user = insertedUsers[0]!;
@@ -318,6 +320,7 @@ export class AuthService {
           name: usersTable.name,
           image: usersTable.image,
           emailVerified: usersTable.emailVerified,
+          role: usersTable.role,
         });
       user = inserted[0]!;
     }
@@ -349,6 +352,7 @@ export class AuthService {
           name: usersTable.name,
           image: usersTable.image,
           emailVerified: usersTable.emailVerified,
+          role: usersTable.role,
         })
         .from(usersTable)
         .where(eq(usersTable.id, payload.sub))
@@ -383,6 +387,7 @@ export class AuthService {
         name: usersTable.name,
         image: usersTable.image,
         emailVerified: usersTable.emailVerified,
+        role: usersTable.role,
       })
       .from(usersTable)
       .where(eq(usersTable.id, payload.sub))

@@ -29,6 +29,13 @@
       "when": 1780000000000,
       "tag": "0003_respondent_copy_setting",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780003600000,
+      "tag": "0004_bonus_features",
+      "breakpoints": true
     }
   ]
 }

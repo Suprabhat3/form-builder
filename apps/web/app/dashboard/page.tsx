@@ -310,6 +310,23 @@ function ShareDialog({
               </Button>
             </div>
           </div>
+          {shareUrl && (
+            <div className="flex flex-col items-center gap-2">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`}
+                alt="QR code"
+                className="rounded-lg border"
+              />
+              <a
+                href={`https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                className="text-xs text-slate-500 underline"
+                rel="noreferrer"
+              >
+                Download QR
+              </a>
+            </div>
+          )}
         </div>
         <DialogFooter className="border-t pt-4 mt-2 sm:justify-between items-center">
           <Button
@@ -337,6 +354,12 @@ function FormsList() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareTarget, setShareTarget] = useState<{ title: string; slug: string } | null>(null);
   const [pendingShare, setPendingShare] = useState<{ id: string; title: string; slug: string } | null>(null);
+  const markTemplate = trpc.form.markAsTemplate.useMutation({
+    onSuccess: () => {
+      utils.form.listMine.invalidate();
+      toast.success("Template setting updated");
+    },
+  });
   
   const publishForm = trpc.form.publish.useMutation({
     onSuccess: (_data, variables) => {
@@ -430,6 +453,9 @@ function FormsList() {
                   <Button variant="outline" size="sm" className="h-8 px-3 gap-1.5 bg-white shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:shadow transition-all cursor-pointer border-slate-200" onClick={() => router.push(`/dashboard/forms/${form.id}/responses`)}>
                     <ClipboardListIcon className="w-3.5 h-3.5 text-slate-500" />
                     <span className="text-xs font-semibold">Responses</span>
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 px-3 bg-white" onClick={() => markTemplate.mutate({ formId: form.id, isTemplate: !form.isTemplate })}>
+                    <span className="text-xs font-semibold">{form.isTemplate ? "Unmark Template" : "Save Template"}</span>
                   </Button>
                 </div>
               </div>

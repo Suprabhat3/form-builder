@@ -2,9 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -41,6 +38,18 @@ interface FormDetails {
   description: string | null;
   themeKey: string;
   respondentEmailCopyEnabled?: boolean;
+  isClosed?: boolean;
+  closeReason?: "EXPIRED" | "LIMIT_REACHED" | null;
+  requiresPassword?: boolean;
+  unlocked?: boolean;
+  closeMessage?: string | null;
+  successMessage?: string | null;
+  showProgressBar?: boolean;
+  collectRespondentEmail?: boolean;
+  thankYouTitle?: string | null;
+  thankYouBody?: string | null;
+  thankYouCtaText?: string | null;
+  thankYouCtaUrl?: string | null;
   fields: FormField[];
 }
 
@@ -56,6 +65,8 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [turnstileWidgetId, setTurnstileWidgetId] = useState<string | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
 
   const sessionKeyRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
@@ -68,6 +79,8 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileEnabled = !isPreview && !!env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const respondentCopyEnabled = form.respondentEmailCopyEnabled ?? true;
+  const collectRespondentEmail = form.collectRespondentEmail ?? false;
+  const showProgressBar = form.showProgressBar ?? true;
 
   const submitResponse = trpc.form.submitResponse.useMutation({
     onSuccess: () => {
@@ -124,8 +137,31 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   };
 
   // Calculate Progress
-  const totalFields = form.fields.length;
-  const answeredFieldsCount = form.fields.filter((field) => {
+  const isFieldVisible = (field: FormField) => {
+    const rules = field.config?.visibilityRules;
+    const predicates: Array<{ fieldId: string; operator: string; value?: unknown }> = rules?.all ?? [];
+    if (predicates.length === 0) return true;
+    return predicates.every((p) => {
+      const answer = answers[p.fieldId];
+      if (p.operator === "equals") return String(answer ?? "") === String(p.value ?? "");
+      if (p.operator === "not_equals") return String(answer ?? "") !== String(p.value ?? "");
+      if (p.operator === "contains") {
+        if (Array.isArray(answer)) return answer.map((x) => String(x)).includes(String(p.value ?? ""));
+        return String(answer ?? "").includes(String(p.value ?? ""));
+      }
+      if (p.operator === "not_contains") {
+        if (Array.isArray(answer)) return !answer.map((x) => String(x)).includes(String(p.value ?? ""));
+        return !String(answer ?? "").includes(String(p.value ?? ""));
+      }
+      if (p.operator === "is_empty") return answer === null || answer === undefined || answer === "" || (Array.isArray(answer) && answer.length === 0);
+      if (p.operator === "is_not_empty") return !(answer === null || answer === undefined || answer === "" || (Array.isArray(answer) && answer.length === 0));
+      return true;
+    });
+  };
+
+  const visibleFields = form.fields.filter(isFieldVisible);
+  const totalFields = visibleFields.length;
+  const answeredFieldsCount = visibleFields.filter((field) => {
     const val = answers[field.id];
     if (val === undefined || val === null) return false;
     if (Array.isArray(val)) return val.length > 0;
@@ -202,7 +238,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    form.fields.forEach((field) => {
+    visibleFields.forEach((field) => {
       const val = answers[field.id];
       if (field.required) {
         if (val === undefined || val === null || val === "") {
@@ -242,8 +278,12 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       toast.error("Please complete human verification before submitting.");
       return;
     }
+    if (collectRespondentEmail && !respondentEmail.trim()) {
+      toast.error("Email is required for this form.");
+      return;
+    }
 
-    const submissionAnswers = form.fields.map((field) => ({
+    const submissionAnswers = visibleFields.map((field) => ({
       fieldId: field.id,
       fieldKey: field.key,
       value: answers[field.id] !== undefined ? answers[field.id] : null,
@@ -339,11 +379,16 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
           </div>
           <div>
             <h2 className="theme-title text-3xl font-extrabold tracking-tight mb-3">
-              Thank you!
+              {form.thankYouTitle || "Thank you!"}
             </h2>
             <p className="theme-muted text-sm max-w-full mx-auto leading-relaxed">
-              We've received your response for <strong>{form.title}</strong>.
+              {form.thankYouBody || form.successMessage || <>We've received your response for <strong>{form.title}</strong>.</>}
             </p>
+            {form.thankYouCtaText && form.thankYouCtaUrl && (
+              <a href={form.thankYouCtaUrl} className="theme-button mt-4 inline-flex px-6 py-2">
+                {form.thankYouCtaText}
+              </a>
+            )}
           </div>
           {isPreview && (
             <Button
@@ -356,6 +401,60 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
               Reset Preview
             </Button>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isPreview && form.isClosed) {
+    return (
+      <div className={`theme-container theme-${form.themeKey} py-12 px-4 sm:px-6 relative`}>
+        {renderThemeDecorators()}
+        <div className="max-w-2xl mx-auto relative z-10">
+          <div className="theme-card p-8 md:p-10 text-center">
+            <h1 className="theme-title text-3xl font-extrabold tracking-tight mb-3">Form Closed</h1>
+            <p className="theme-muted text-sm leading-relaxed whitespace-pre-line">
+              {form.closeMessage || "This form is no longer accepting responses."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isPreview && form.requiresPassword && !form.unlocked) {
+    return (
+      <div className={`theme-container theme-${form.themeKey} py-12 px-4 sm:px-6 relative`}>
+        {renderThemeDecorators()}
+        <div className="max-w-md mx-auto relative z-10">
+          <div className="theme-card p-8 space-y-4">
+            <h2 className="theme-title text-2xl font-extrabold tracking-tight">Protected Form</h2>
+            <p className="theme-muted text-sm">Enter password to access this form.</p>
+            <Input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
+            <Button
+              disabled={unlocking || !passwordInput}
+              onClick={async () => {
+                try {
+                  setUnlocking(true);
+                  const apiBase = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/trpc").replace(/\/trpc\/?$/, "");
+                  const res = await fetch(`${apiBase}/forms/unlock`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ slug: typeof window !== "undefined" ? window.location.pathname.split("/").pop() : "", password: passwordInput }),
+                  });
+                  if (!res.ok) throw new Error("Invalid password");
+                  window.location.reload();
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Unable to unlock form");
+                } finally {
+                  setUnlocking(false);
+                }
+              }}
+            >
+              {unlocking ? "Unlocking..." : "Unlock Form"}
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -374,6 +473,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       
       <div className="max-w-2xl mx-auto relative z-10">
         {/* Progress Bar */}
+        {showProgressBar && (
         <div className="mb-6 theme-card p-3 flex items-center justify-between gap-4">
           <div className="flex-1 bg-muted/40 h-2 rounded-full overflow-hidden">
             <div 
@@ -388,6 +488,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
             {answeredFieldsCount} of {totalFields} answered ({progressPercent}%)
           </span>
         </div>
+        )}
 
         {/* Form Title & Description Card */}
         <div className="theme-card p-8 md:p-10 mb-8 flex flex-col gap-4">
@@ -432,6 +533,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
                   onChange={(e) => setRespondentEmail(e.target.value)}
                   className="theme-input w-full h-10 px-3 bg-transparent"
                 />
+                {collectRespondentEmail && <p className="text-[11px] theme-muted">Email is required for this form.</p>}
               </div>
             </div>
             {respondentCopyEnabled && respondentEmail.trim().length > 0 && (
@@ -448,7 +550,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
           </div>
 
           {/* Form Dynamic Fields */}
-          {form.fields.map((field) => {
+          {visibleFields.map((field) => {
             const hasError = !!errors[field.id];
             const isOptionsType = ["SINGLE_SELECT", "MULTI_SELECT"].includes(field.type);
             const options: string[] = field.config?.options || [];

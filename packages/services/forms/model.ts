@@ -26,6 +26,17 @@ export const formFieldConfigSchema = z
     minDate: z.string().optional(),
     maxDate: z.string().optional(),
     maxRating: z.number().int().positive().optional(),
+    visibilityRules: z
+      .object({
+        all: z.array(
+          z.object({
+            fieldId: z.string().uuid(),
+            operator: z.enum(["equals", "not_equals", "contains", "not_contains", "is_empty", "is_not_empty"]),
+            value: z.unknown().optional(),
+          }),
+        ),
+      })
+      .optional(),
   })
   .strict();
 
@@ -70,6 +81,17 @@ export const updateFormInputSchema = z.object({
   themeKey: formThemeKeySchema.optional(),
   creatorNotificationsEnabled: z.boolean().optional(),
   respondentEmailCopyEnabled: z.boolean().optional(),
+  collectRespondentEmail: z.boolean().optional(),
+  showProgressBar: z.boolean().optional(),
+  maxResponses: z.number().int().positive().nullable().optional(),
+  expiresAt: z.string().datetime().nullable().optional(),
+  closeMessage: z.string().nullable().optional(),
+  successMessage: z.string().nullable().optional(),
+  password: z.string().min(4).nullable().optional(),
+  thankYouTitle: z.string().nullable().optional(),
+  thankYouBody: z.string().nullable().optional(),
+  thankYouCtaText: z.string().nullable().optional(),
+  thankYouCtaUrl: z.string().url().nullable().optional(),
   creatorNotificationMode: creatorNotificationModeSchema.optional(),
   creatorDigestIntervalHours: creatorDigestIntervalHoursSchema.optional(),
 });
@@ -128,6 +150,18 @@ export const getAnalyticsOverviewInputSchema = z.object({
 
 export const getResponsesInputSchema = z.object({
   formId: z.string().uuid(),
+  search: z.string().optional(),
+  fromDate: z.string().datetime().optional(),
+  toDate: z.string().datetime().optional(),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(200).default(50),
+});
+
+export const exportResponsesCsvInputSchema = z.object({
+  formId: z.string().uuid(),
+  search: z.string().optional(),
+  fromDate: z.string().datetime().optional(),
+  toDate: z.string().datetime().optional(),
 });
 
 export const getResponseDetailInputSchema = z.object({
@@ -149,4 +183,29 @@ export const submitResponseInputSchema = z.object({
       value: z.unknown(),
     }),
   ),
+});
+
+export const unlockProtectedFormInputSchema = z.object({
+  slug: z.string(),
+  password: z.string().min(1),
+});
+
+export const markAsTemplateInputSchema = z.object({
+  formId: z.string().uuid(),
+  isTemplate: z.boolean(),
+});
+
+export const cloneTemplateInputSchema = z.object({
+  templateFormId: z.string().uuid(),
+  title: z.string().min(1).optional(),
+});
+
+export const adminModerateFormInputSchema = z.object({
+  formId: z.string().uuid(),
+  action: z.enum(["ARCHIVE", "UNPUBLISH", "PUBLISH"]),
+});
+
+export const adminFeatureTemplateInputSchema = z.object({
+  formId: z.string().uuid(),
+  isFeatured: z.boolean(),
 });

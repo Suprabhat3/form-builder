@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { createHash } from "crypto";
-import { and, asc, count, desc, eq, gte, inArray, sql } from "../../../../database";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "../../../../database";
 import {
   formFieldsTable,
   formPublicSettingsTable,
@@ -13,6 +13,7 @@ import {
   fieldTypeEnum,
   formStatusEnum,
   formVisibilityEnum,
+  adminAuditLogsTable,
 } from "../../../../database/schema";
 import {
   addFormFieldInputSchema,
@@ -30,14 +31,19 @@ import {
   getBySlugInputSchema,
   getResponseDetailInputSchema,
   getResponsesInputSchema,
+  exportResponsesCsvInputSchema,
   recordAnalyticsEventInputSchema,
   reorderFormFieldsInputSchema,
   submitResponseInputSchema,
+  cloneTemplateInputSchema,
+  markAsTemplateInputSchema,
+  adminFeatureTemplateInputSchema,
+  adminModerateFormInputSchema,
   updateFormFieldInputSchema,
   updateFormInputSchema,
 } from "@repo/services/forms/model";
 import { z, zodUndefinedModel } from "../../schema";
-import { protectedProcedure, publicProcedure, router } from "../../trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { db } from "../../../../database";
 import { resendClient } from "@repo/services/clients/resend";
 import { env } from "@repo/services/env";
@@ -203,6 +209,81 @@ function hashSubmitterIp(ip: string): string {
   return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
 }
 
+function hashFormPassword(password: string): string {
+  const salt = env.RATE_LIMIT_SALT ?? env.JWT_ACCESS_SECRET;
+  return createHash("sha256").update(`form-password:${salt}:${password}`).digest("hex");
+}
+
+function protectedCookieName(formId: string): string {
+  return `form_unlock_${formId}`;
+}
+
+function computeCloseState(params: {
+  expiresAt: Date | null;
+  maxResponses: number | null;
+  responseCount: number;
+}): { isClosed: boolean; closeReason: "EXPIRED" | "LIMIT_REACHED" | null } {
+  const now = new Date();
+  if (params.expiresAt && params.expiresAt.getTime() <= now.getTime()) {
+    return { isClosed: true, closeReason: "EXPIRED" };
+  }
+  if (params.maxResponses !== null && params.responseCount >= params.maxResponses) {
+    return { isClosed: true, closeReason: "LIMIT_REACHED" };
+  }
+  return { isClosed: false, closeReason: null };
+}
+
+function isValueEmpty(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim().length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+type VisibilityPredicate = { fieldId: string; operator: string; value?: unknown };
+
+function evaluatePredicate(answerValue: unknown, predicate: VisibilityPredicate): boolean {
+  switch (predicate.operator) {
+    case "equals":
+      return String(answerValue ?? "") === String(predicate.value ?? "");
+    case "not_equals":
+      return String(answerValue ?? "") !== String(predicate.value ?? "");
+    case "contains": {
+      if (Array.isArray(answerValue)) return answerValue.map(v => String(v)).includes(String(predicate.value ?? ""));
+      return String(answerValue ?? "").includes(String(predicate.value ?? ""));
+    }
+    case "not_contains": {
+      if (Array.isArray(answerValue)) return !answerValue.map(v => String(v)).includes(String(predicate.value ?? ""));
+      return !String(answerValue ?? "").includes(String(predicate.value ?? ""));
+    }
+    case "is_empty":
+      return isValueEmpty(answerValue);
+    case "is_not_empty":
+      return !isValueEmpty(answerValue);
+    default:
+      return true;
+  }
+}
+
+function isFieldVisible(
+  field: { config: Record<string, unknown> | null },
+  answersByFieldId: Map<string, unknown>,
+): boolean {
+  const rules = (field.config as { visibilityRules?: { all?: VisibilityPredicate[] } } | null)?.visibilityRules;
+  const all = rules?.all;
+  if (!all || all.length === 0) return true;
+  return all.every((predicate) => evaluatePredicate(answersByFieldId.get(predicate.fieldId), predicate));
+}
+
+function toCsvCell(value: unknown): string {
+  let out: string;
+  if (value === null || value === undefined) out = "";
+  else if (Array.isArray(value)) out = value.map(v => String(v)).join(", ");
+  else if (typeof value === "object") out = JSON.stringify(value);
+  else out = String(value);
+  return `"${out.replace(/"/g, '""')}"`;
+}
+
 async function verifyTurnstileToken(params: { token: string; ip?: string | null }): Promise<boolean> {
   if (!env.TURNSTILE_SECRET_KEY) return true;
   const payload = new URLSearchParams({
@@ -333,6 +414,7 @@ export const formRouter = router({
           status: formStatusSchema,
           visibility: formVisibilitySchema,
           themeKey: formThemeKeySchema,
+          isTemplate: z.boolean(),
           responseCount: z.number().int().nonnegative(),
           updatedAt: z.date(),
         }),
@@ -347,6 +429,7 @@ export const formRouter = router({
           status: formsTable.status,
           visibility: formsTable.visibility,
           themeKey: formsTable.themeKey,
+          isTemplate: formsTable.isTemplate,
           updatedAt: formsTable.updatedAt,
           responseCount: count(formResponsesTable.id),
         })
@@ -361,6 +444,7 @@ export const formRouter = router({
         status: row.status as (typeof formStatusEnum.enumValues)[number],
         visibility: row.visibility as (typeof formVisibilityEnum.enumValues)[number],
         themeKey: row.themeKey as z.infer<typeof formThemeKeySchema>,
+        isTemplate: row.isTemplate,
         responseCount: Number(row.responseCount ?? 0),
       }));
     }),
@@ -381,6 +465,17 @@ export const formRouter = router({
         notificationSettings: z.object({
           creatorNotificationsEnabled: z.boolean(),
           respondentEmailCopyEnabled: z.boolean(),
+          collectRespondentEmail: z.boolean(),
+          showProgressBar: z.boolean(),
+          maxResponses: z.number().int().positive().nullable(),
+          expiresAt: z.date().nullable(),
+          closeMessage: z.string().nullable(),
+          successMessage: z.string().nullable(),
+          hasPassword: z.boolean(),
+          thankYouTitle: z.string().nullable(),
+          thankYouBody: z.string().nullable(),
+          thankYouCtaText: z.string().nullable(),
+          thankYouCtaUrl: z.string().nullable(),
           creatorNotificationMode: creatorNotificationModeSchema,
           creatorDigestIntervalHours: creatorDigestIntervalHoursSchema,
         }),
@@ -412,6 +507,17 @@ export const formRouter = router({
           updatedAt: formsTable.updatedAt,
           creatorNotificationsEnabled: formPublicSettingsTable.creatorNotificationsEnabled,
           respondentEmailCopyEnabled: formPublicSettingsTable.respondentEmailCopyEnabled,
+          collectRespondentEmail: formPublicSettingsTable.collectRespondentEmail,
+          showProgressBar: formPublicSettingsTable.showProgressBar,
+          maxResponses: formPublicSettingsTable.maxResponses,
+          expiresAt: formPublicSettingsTable.expiresAt,
+          closeMessage: formPublicSettingsTable.closeMessage,
+          successMessage: formPublicSettingsTable.successMessage,
+          passwordHash: formPublicSettingsTable.passwordHash,
+          thankYouTitle: formPublicSettingsTable.thankYouTitle,
+          thankYouBody: formPublicSettingsTable.thankYouBody,
+          thankYouCtaText: formPublicSettingsTable.thankYouCtaText,
+          thankYouCtaUrl: formPublicSettingsTable.thankYouCtaUrl,
           creatorNotificationMode: formPublicSettingsTable.creatorNotificationMode,
           creatorDigestIntervalHours: formPublicSettingsTable.creatorDigestIntervalHours,
         })
@@ -446,6 +552,17 @@ export const formRouter = router({
         notificationSettings: {
           creatorNotificationsEnabled: Boolean(form[0].creatorNotificationsEnabled ?? false),
           respondentEmailCopyEnabled: Boolean(form[0].respondentEmailCopyEnabled ?? true),
+          collectRespondentEmail: Boolean(form[0].collectRespondentEmail ?? false),
+          showProgressBar: Boolean(form[0].showProgressBar ?? true),
+          maxResponses: form[0].maxResponses ?? null,
+          expiresAt: form[0].expiresAt ?? null,
+          closeMessage: form[0].closeMessage ?? null,
+          successMessage: form[0].successMessage ?? null,
+          hasPassword: Boolean(form[0].passwordHash),
+          thankYouTitle: form[0].thankYouTitle ?? null,
+          thankYouBody: form[0].thankYouBody ?? null,
+          thankYouCtaText: form[0].thankYouCtaText ?? null,
+          thankYouCtaUrl: form[0].thankYouCtaUrl ?? null,
           creatorNotificationMode:
             (form[0].creatorNotificationMode as z.infer<typeof creatorNotificationModeSchema> | null) ?? "IMMEDIATE",
           creatorDigestIntervalHours:
@@ -482,16 +599,44 @@ export const formRouter = router({
       const shouldUpdateNotificationSettings =
         input.creatorNotificationsEnabled !== undefined ||
         input.respondentEmailCopyEnabled !== undefined ||
+        input.collectRespondentEmail !== undefined ||
+        input.showProgressBar !== undefined ||
+        input.maxResponses !== undefined ||
+        input.expiresAt !== undefined ||
+        input.closeMessage !== undefined ||
+        input.successMessage !== undefined ||
+        input.password !== undefined ||
+        input.thankYouTitle !== undefined ||
+        input.thankYouBody !== undefined ||
+        input.thankYouCtaText !== undefined ||
+        input.thankYouCtaUrl !== undefined ||
         input.creatorNotificationMode !== undefined ||
         input.creatorDigestIntervalHours !== undefined;
 
       if (shouldUpdateNotificationSettings) {
+        const passwordHash =
+          input.password === undefined
+            ? undefined
+            : input.password === null
+              ? null
+              : hashFormPassword(input.password);
         await db
           .insert(formPublicSettingsTable)
           .values({
             formId: input.formId,
             creatorNotificationsEnabled: input.creatorNotificationsEnabled ?? false,
             respondentEmailCopyEnabled: input.respondentEmailCopyEnabled ?? true,
+            collectRespondentEmail: input.collectRespondentEmail ?? false,
+            showProgressBar: input.showProgressBar ?? true,
+            maxResponses: input.maxResponses ?? null,
+            expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+            closeMessage: input.closeMessage ?? null,
+            successMessage: input.successMessage ?? null,
+            passwordHash: passwordHash ?? null,
+            thankYouTitle: input.thankYouTitle ?? null,
+            thankYouBody: input.thankYouBody ?? null,
+            thankYouCtaText: input.thankYouCtaText ?? null,
+            thankYouCtaUrl: input.thankYouCtaUrl ?? null,
             creatorNotificationMode: input.creatorNotificationMode ?? "IMMEDIATE",
             creatorDigestIntervalHours: input.creatorDigestIntervalHours ?? 1,
             updatedAt: new Date(),
@@ -504,6 +649,39 @@ export const formRouter = router({
                 : {}),
               ...(input.respondentEmailCopyEnabled !== undefined
                 ? { respondentEmailCopyEnabled: input.respondentEmailCopyEnabled }
+                : {}),
+              ...(input.collectRespondentEmail !== undefined
+                ? { collectRespondentEmail: input.collectRespondentEmail }
+                : {}),
+              ...(input.showProgressBar !== undefined
+                ? { showProgressBar: input.showProgressBar }
+                : {}),
+              ...(input.maxResponses !== undefined
+                ? { maxResponses: input.maxResponses }
+                : {}),
+              ...(input.expiresAt !== undefined
+                ? { expiresAt: input.expiresAt ? new Date(input.expiresAt) : null }
+                : {}),
+              ...(input.closeMessage !== undefined
+                ? { closeMessage: input.closeMessage }
+                : {}),
+              ...(input.successMessage !== undefined
+                ? { successMessage: input.successMessage }
+                : {}),
+              ...(passwordHash !== undefined
+                ? { passwordHash }
+                : {}),
+              ...(input.thankYouTitle !== undefined
+                ? { thankYouTitle: input.thankYouTitle }
+                : {}),
+              ...(input.thankYouBody !== undefined
+                ? { thankYouBody: input.thankYouBody }
+                : {}),
+              ...(input.thankYouCtaText !== undefined
+                ? { thankYouCtaText: input.thankYouCtaText }
+                : {}),
+              ...(input.thankYouCtaUrl !== undefined
+                ? { thankYouCtaUrl: input.thankYouCtaUrl }
                 : {}),
               ...(input.creatorNotificationMode !== undefined
                 ? { creatorNotificationMode: input.creatorNotificationMode }
@@ -736,6 +914,18 @@ export const formRouter = router({
         status: formStatusSchema,
         visibility: formVisibilitySchema,
         themeKey: formThemeKeySchema,
+        isClosed: z.boolean(),
+        closeReason: z.enum(["EXPIRED", "LIMIT_REACHED"]).nullable(),
+        requiresPassword: z.boolean(),
+        unlocked: z.boolean(),
+        closeMessage: z.string().nullable(),
+        successMessage: z.string().nullable(),
+        showProgressBar: z.boolean(),
+        collectRespondentEmail: z.boolean(),
+        thankYouTitle: z.string().nullable(),
+        thankYouBody: z.string().nullable(),
+        thankYouCtaText: z.string().nullable(),
+        thankYouCtaUrl: z.string().nullable(),
         respondentEmailCopyEnabled: z.boolean(),
         fields: z.array(
           z.object({
@@ -752,7 +942,7 @@ export const formRouter = router({
         ),
       }),
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const form = await db
         .select({
           id: formsTable.id,
@@ -762,6 +952,17 @@ export const formRouter = router({
           status: formsTable.status,
           visibility: formsTable.visibility,
           themeKey: formsTable.themeKey,
+          closeMessage: formPublicSettingsTable.closeMessage,
+          successMessage: formPublicSettingsTable.successMessage,
+          showProgressBar: formPublicSettingsTable.showProgressBar,
+          collectRespondentEmail: formPublicSettingsTable.collectRespondentEmail,
+          maxResponses: formPublicSettingsTable.maxResponses,
+          expiresAt: formPublicSettingsTable.expiresAt,
+          passwordHash: formPublicSettingsTable.passwordHash,
+          thankYouTitle: formPublicSettingsTable.thankYouTitle,
+          thankYouBody: formPublicSettingsTable.thankYouBody,
+          thankYouCtaText: formPublicSettingsTable.thankYouCtaText,
+          thankYouCtaUrl: formPublicSettingsTable.thankYouCtaUrl,
           respondentEmailCopyEnabled: formPublicSettingsTable.respondentEmailCopyEnabled,
         })
         .from(formsTable)
@@ -776,6 +977,21 @@ export const formRouter = router({
       if (form[0].status !== "PUBLISHED") {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "This form is not currently published" });
       }
+
+      const responseCountRows = await db
+        .select({ total: count(formResponsesTable.id) })
+        .from(formResponsesTable)
+        .where(eq(formResponsesTable.formId, form[0].id));
+      const responseCount = Number(responseCountRows[0]?.total ?? 0);
+      const closeState = computeCloseState({
+        expiresAt: form[0].expiresAt,
+        maxResponses: form[0].maxResponses,
+        responseCount,
+      });
+      const requiresPassword = Boolean(form[0].passwordHash);
+      const unlocked = requiresPassword
+        ? ctx.cookies[protectedCookieName(form[0].id)] === "1"
+        : true;
 
       const fields = await db
         .select({
@@ -798,6 +1014,18 @@ export const formRouter = router({
         status: form[0].status as z.infer<typeof formStatusSchema>,
         visibility: form[0].visibility as z.infer<typeof formVisibilitySchema>,
         themeKey: form[0].themeKey as z.infer<typeof formThemeKeySchema>,
+        isClosed: closeState.isClosed,
+        closeReason: closeState.closeReason,
+        requiresPassword,
+        unlocked,
+        closeMessage: form[0].closeMessage ?? null,
+        successMessage: form[0].successMessage ?? null,
+        showProgressBar: Boolean(form[0].showProgressBar ?? true),
+        collectRespondentEmail: Boolean(form[0].collectRespondentEmail ?? false),
+        thankYouTitle: form[0].thankYouTitle ?? null,
+        thankYouBody: form[0].thankYouBody ?? null,
+        thankYouCtaText: form[0].thankYouCtaText ?? null,
+        thankYouCtaUrl: form[0].thankYouCtaUrl ?? null,
         respondentEmailCopyEnabled: Boolean(form[0].respondentEmailCopyEnabled ?? true),
         fields: fields.map(f => ({
           ...f,
@@ -813,8 +1041,17 @@ export const formRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input }) => {
       const form = await db
-        .select({ id: formsTable.id, status: formsTable.status })
+        .select({
+          id: formsTable.id,
+          status: formsTable.status,
+          closeMessage: formPublicSettingsTable.closeMessage,
+          maxResponses: formPublicSettingsTable.maxResponses,
+          expiresAt: formPublicSettingsTable.expiresAt,
+          passwordHash: formPublicSettingsTable.passwordHash,
+          collectRespondentEmail: formPublicSettingsTable.collectRespondentEmail,
+        })
         .from(formsTable)
+        .leftJoin(formPublicSettingsTable, eq(formPublicSettingsTable.formId, formsTable.id))
         .where(eq(formsTable.id, input.formId))
         .limit(1);
 
@@ -844,8 +1081,17 @@ export const formRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input }) => {
       const form = await db
-        .select({ id: formsTable.id, status: formsTable.status })
+        .select({
+          id: formsTable.id,
+          status: formsTable.status,
+          closeMessage: formPublicSettingsTable.closeMessage,
+          maxResponses: formPublicSettingsTable.maxResponses,
+          expiresAt: formPublicSettingsTable.expiresAt,
+          passwordHash: formPublicSettingsTable.passwordHash,
+          collectRespondentEmail: formPublicSettingsTable.collectRespondentEmail,
+        })
         .from(formsTable)
+        .leftJoin(formPublicSettingsTable, eq(formPublicSettingsTable.formId, formsTable.id))
         .where(eq(formsTable.id, input.formId))
         .limit(1);
 
@@ -1168,26 +1414,58 @@ export const formRouter = router({
     .meta({ openapi: { method: "GET", path: getPath("/{formId}/responses"), tags: TAGS } })
     .input(getResponsesInputSchema)
     .output(
-      z.array(
-        z.object({
-          id: z.string().uuid(),
-          submittedAt: z.date(),
-          respondentEmail: z.string().nullable(),
-          respondentName: z.string().nullable(),
-          itemCount: z.number().int().nonnegative(),
-          answers: z.array(
-            z.object({
-              fieldId: z.string().uuid(),
-              fieldKey: z.string(),
-              label: z.string(),
-              value: z.unknown(),
-            }),
-          ),
-        }),
-      ),
+      z.object({
+        items: z.array(
+          z.object({
+            id: z.string().uuid(),
+            submittedAt: z.date(),
+            respondentEmail: z.string().nullable(),
+            respondentName: z.string().nullable(),
+            itemCount: z.number().int().nonnegative(),
+            answers: z.array(
+              z.object({
+                fieldId: z.string().uuid(),
+                fieldKey: z.string(),
+                label: z.string(),
+                value: z.unknown(),
+              }),
+            ),
+          }),
+        ),
+        total: z.number().int().nonnegative(),
+        page: z.number().int().positive(),
+        pageSize: z.number().int().positive(),
+      }),
     )
     .query(async ({ input, ctx }) => {
       await getOwnedFormOrThrow(input.formId, ctx.user.id);
+
+      const predicates = [eq(formResponsesTable.formId, input.formId)];
+      if (input.search?.trim()) {
+        const search = `%${input.search.trim()}%`;
+        predicates.push(
+          or(
+            ilike(formResponsesTable.respondentName, search),
+            ilike(formResponsesTable.respondentEmail, search),
+            sql`exists (
+              select 1
+              from ${formResponseItemsTable} fri
+              where fri.response_id = ${formResponsesTable.id}
+              and cast(fri.value as text) ilike ${search}
+            )`,
+          )!,
+        );
+      }
+      if (input.fromDate) predicates.push(gte(formResponsesTable.submittedAt, new Date(input.fromDate)));
+      if (input.toDate) predicates.push(lte(formResponsesTable.submittedAt, new Date(input.toDate)));
+      const whereClause = and(...predicates);
+
+      const totalRows = await db
+        .select({ total: count(formResponsesTable.id) })
+        .from(formResponsesTable)
+        .where(whereClause);
+      const total = Number(totalRows[0]?.total ?? 0);
+      const offset = (input.page - 1) * input.pageSize;
 
       const responses = await db
         .select({
@@ -1199,10 +1477,11 @@ export const formRouter = router({
         })
         .from(formResponsesTable)
         .leftJoin(formResponseItemsTable, eq(formResponseItemsTable.responseId, formResponsesTable.id))
-        .where(eq(formResponsesTable.formId, input.formId))
+        .where(whereClause)
         .groupBy(formResponsesTable.id)
         .orderBy(desc(formResponsesTable.submittedAt))
-        .limit(50);
+        .limit(input.pageSize)
+        .offset(offset);
 
       const responseIds = responses.map((row) => row.id);
       const answerItems =
@@ -1242,11 +1521,16 @@ export const formRouter = router({
         answersByResponse.set(item.responseId, bucket);
       }
 
-      return responses.map((row: (typeof responses)[number]) => ({
-        ...row,
-        itemCount: Number(row.itemCount ?? 0),
-        answers: answersByResponse.get(row.id) ?? [],
-      }));
+      return {
+        items: responses.map((row: (typeof responses)[number]) => ({
+          ...row,
+          itemCount: Number(row.itemCount ?? 0),
+          answers: answersByResponse.get(row.id) ?? [],
+        })),
+        total,
+        page: input.page,
+        pageSize: input.pageSize,
+      };
     }),
 
   getResponseDetail: protectedProcedure
@@ -1315,6 +1599,194 @@ export const formRouter = router({
       };
     }),
 
+  exportResponsesCsv: protectedProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/{formId}/responses/export.csv"), tags: TAGS } })
+    .input(exportResponsesCsvInputSchema)
+    .output(z.object({ filename: z.string(), csv: z.string() }))
+    .query(async ({ input, ctx }) => {
+      await getOwnedFormOrThrow(input.formId, ctx.user.id);
+      const predicates = [eq(formResponsesTable.formId, input.formId)];
+      if (input.search?.trim()) {
+        const search = `%${input.search.trim()}%`;
+        predicates.push(
+          or(
+            ilike(formResponsesTable.respondentName, search),
+            ilike(formResponsesTable.respondentEmail, search),
+            sql`exists (
+              select 1
+              from ${formResponseItemsTable} fri
+              where fri.response_id = ${formResponsesTable.id}
+              and cast(fri.value as text) ilike ${search}
+            )`,
+          )!,
+        );
+      }
+      if (input.fromDate) predicates.push(gte(formResponsesTable.submittedAt, new Date(input.fromDate)));
+      if (input.toDate) predicates.push(lte(formResponsesTable.submittedAt, new Date(input.toDate)));
+      const whereClause = and(...predicates);
+
+      const responses = await db
+        .select({
+          id: formResponsesTable.id,
+          submittedAt: formResponsesTable.submittedAt,
+          respondentEmail: formResponsesTable.respondentEmail,
+          respondentName: formResponsesTable.respondentName,
+        })
+        .from(formResponsesTable)
+        .where(whereClause)
+        .orderBy(desc(formResponsesTable.submittedAt));
+
+      const fields = await db
+        .select({ id: formFieldsTable.id, label: formFieldsTable.label, key: formFieldsTable.key, position: formFieldsTable.position })
+        .from(formFieldsTable)
+        .where(eq(formFieldsTable.formId, input.formId))
+        .orderBy(asc(formFieldsTable.position), asc(formFieldsTable.createdAt));
+
+      const responseIds = responses.map((r) => r.id);
+      const items = responseIds.length
+        ? await db
+            .select({
+              responseId: formResponseItemsTable.responseId,
+              fieldId: formResponseItemsTable.fieldId,
+              value: formResponseItemsTable.value,
+            })
+            .from(formResponseItemsTable)
+            .where(inArray(formResponseItemsTable.responseId, responseIds))
+        : [];
+      const byResponse = new Map<string, Map<string, unknown>>();
+      for (const item of items) {
+        const bucket = byResponse.get(item.responseId) ?? new Map<string, unknown>();
+        bucket.set(item.fieldId, item.value);
+        byResponse.set(item.responseId, bucket);
+      }
+
+      const headers = ["responseId", "submittedAt", "respondentName", "respondentEmail", ...fields.map((f) => f.label || f.key)];
+      const lines = [headers.map((h) => toCsvCell(h)).join(",")];
+      for (const response of responses) {
+        const valueMap = byResponse.get(response.id) ?? new Map<string, unknown>();
+        const row = [
+          toCsvCell(response.id),
+          toCsvCell(response.submittedAt.toISOString()),
+          toCsvCell(response.respondentName ?? ""),
+          toCsvCell(response.respondentEmail ?? ""),
+          ...fields.map((f) => toCsvCell(valueMap.get(f.id))),
+        ];
+        lines.push(row.join(","));
+      }
+
+      return {
+        filename: `form-${input.formId}-responses.csv`,
+        csv: lines.join("\n"),
+      };
+    }),
+
+  markAsTemplate: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/{formId}/template"), tags: TAGS } })
+    .input(markAsTemplateInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      await getOwnedFormOrThrow(input.formId, ctx.user.id);
+      await db.update(formsTable).set({ isTemplate: input.isTemplate, updatedAt: new Date() }).where(eq(formsTable.id, input.formId));
+      return { success: true };
+    }),
+
+  listTemplates: protectedProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/templates"), tags: TAGS } })
+    .input(zodUndefinedModel)
+    .output(
+      z.array(
+        z.object({
+          id: z.string().uuid(),
+          title: z.string(),
+          description: z.string().nullable(),
+          themeKey: formThemeKeySchema,
+          isFeatured: z.boolean(),
+          ownerId: z.string().uuid(),
+        }),
+      ),
+    )
+    .query(async ({ ctx }) => {
+      const rows = await db
+        .select({
+          id: formsTable.id,
+          title: formsTable.title,
+          description: formsTable.description,
+          themeKey: formsTable.themeKey,
+          isFeatured: formsTable.isFeatured,
+          ownerId: formsTable.ownerId,
+        })
+        .from(formsTable)
+        .where(and(eq(formsTable.isTemplate, true), or(eq(formsTable.isFeatured, true), eq(formsTable.ownerId, ctx.user.id))!))
+        .orderBy(desc(formsTable.isFeatured), desc(formsTable.updatedAt));
+      return rows.map((r) => ({ ...r, themeKey: r.themeKey as z.infer<typeof formThemeKeySchema> }));
+    }),
+
+  cloneTemplate: protectedProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/templates/clone"), tags: TAGS } })
+    .input(cloneTemplateInputSchema)
+    .output(z.object({ formId: z.string().uuid(), slug: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const templateRows = await db
+        .select({
+          id: formsTable.id,
+          title: formsTable.title,
+          description: formsTable.description,
+          themeKey: formsTable.themeKey,
+          visibility: formsTable.visibility,
+          isTemplate: formsTable.isTemplate,
+        })
+        .from(formsTable)
+        .where(eq(formsTable.id, input.templateFormId))
+        .limit(1);
+      const template = templateRows[0];
+      if (!template || !template.isTemplate) throw new TRPCError({ code: "NOT_FOUND", message: "Template not found" });
+      const slug = await generateUniqueSlug(input.title ?? `${template.title} copy`);
+      const inserted = await db
+        .insert(formsTable)
+        .values({
+          ownerId: ctx.user.id,
+          title: input.title ?? `${template.title} copy`,
+          description: template.description,
+          slug,
+          visibility: template.visibility as (typeof formVisibilityEnum.enumValues)[number],
+          themeKey: template.themeKey,
+        })
+        .returning({ id: formsTable.id, slug: formsTable.slug });
+      const newFormId = inserted[0]!.id;
+
+      const templateFields = await db
+        .select({
+          key: formFieldsTable.key,
+          type: formFieldsTable.type,
+          label: formFieldsTable.label,
+          helperText: formFieldsTable.helperText,
+          placeholder: formFieldsTable.placeholder,
+          required: formFieldsTable.required,
+          position: formFieldsTable.position,
+          config: formFieldsTable.config,
+        })
+        .from(formFieldsTable)
+        .where(eq(formFieldsTable.formId, template.id))
+        .orderBy(asc(formFieldsTable.position), asc(formFieldsTable.createdAt));
+      if (templateFields.length > 0) {
+        await db.insert(formFieldsTable).values(
+          templateFields.map((f) => ({
+            formId: newFormId,
+            key: f.key,
+            type: f.type,
+            label: f.label,
+            helperText: f.helperText,
+            placeholder: f.placeholder,
+            required: f.required,
+            position: f.position,
+            config: f.config,
+          })),
+        );
+      }
+      await db.insert(formPublicSettingsTable).values({ formId: newFormId }).onConflictDoNothing();
+      return { formId: newFormId, slug: inserted[0]!.slug };
+    }),
+
   submitResponse: publicProcedure
     .meta({ openapi: { method: "POST", path: getPath("/{formId}/submit"), tags: TAGS } })
     .input(submitResponseInputSchema)
@@ -1331,8 +1803,17 @@ export const formRouter = router({
       }
 
       const form = await db
-        .select({ id: formsTable.id, status: formsTable.status })
+        .select({
+          id: formsTable.id,
+          status: formsTable.status,
+          closeMessage: formPublicSettingsTable.closeMessage,
+          maxResponses: formPublicSettingsTable.maxResponses,
+          expiresAt: formPublicSettingsTable.expiresAt,
+          passwordHash: formPublicSettingsTable.passwordHash,
+          collectRespondentEmail: formPublicSettingsTable.collectRespondentEmail,
+        })
         .from(formsTable)
+        .leftJoin(formPublicSettingsTable, eq(formPublicSettingsTable.formId, formsTable.id))
         .where(eq(formsTable.id, input.formId))
         .limit(1);
 
@@ -1342,6 +1823,33 @@ export const formRouter = router({
 
       if (form[0].status !== "PUBLISHED") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Only published forms can accept submissions" });
+      }
+      const responseCountRows = await db
+        .select({ total: count(formResponsesTable.id) })
+        .from(formResponsesTable)
+        .where(eq(formResponsesTable.formId, input.formId));
+      const closeState = computeCloseState({
+        expiresAt: form[0].expiresAt,
+        maxResponses: form[0].maxResponses,
+        responseCount: Number(responseCountRows[0]?.total ?? 0),
+      });
+      if (closeState.isClosed) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            closeState.closeReason === "EXPIRED"
+              ? "This form has expired."
+              : "This form has reached the maximum number of responses.",
+        });
+      }
+      if (form[0].passwordHash) {
+        const unlocked = ctx.cookies[protectedCookieName(input.formId)] === "1";
+        if (!unlocked) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Form password is required" });
+        }
+      }
+      if (form[0].collectRespondentEmail && !input.respondentEmail) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Respondent email is required for this form" });
       }
 
       const submitterIpHash = ctx.clientIp ? hashSubmitterIp(ctx.clientIp) : null;
@@ -1392,16 +1900,20 @@ export const formRouter = router({
           key: formFieldsTable.key,
           type: formFieldsTable.type,
           required: formFieldsTable.required,
+          config: formFieldsTable.config,
         })
         .from(formFieldsTable)
         .where(eq(formFieldsTable.formId, input.formId));
 
-      const fieldMap = new Map(fields.map(f => [f.id, f]));
-      
-      for (const field of fields) {
+      const answersByFieldId = new Map(input.answers.map((a) => [a.fieldId, a.value] as const));
+      const visibleFields = fields.filter((field) =>
+        isFieldVisible({ config: (field as { config?: Record<string, unknown> }).config ?? {} }, answersByFieldId),
+      );
+
+      for (const field of visibleFields) {
         if (field.required) {
           const answer = input.answers.find(a => a.fieldId === field.id);
-          if (!answer || answer.value === undefined || answer.value === null || answer.value === "") {
+          if (!answer || isValueEmpty(answer.value)) {
             throw new TRPCError({
               code: "BAD_REQUEST",
               message: `Field "${field.key}" is required.`,
@@ -1409,6 +1921,8 @@ export const formRouter = router({
           }
         }
       }
+      const visibleFieldIds = new Set(visibleFields.map((f) => f.id));
+      const normalizedAnswers = input.answers.filter((a) => visibleFieldIds.has(a.fieldId));
 
       const headerInserted = await db
         .insert(formResponsesTable)
@@ -1425,9 +1939,9 @@ export const formRouter = router({
       const responseId = headerInserted[0]!.id;
       const submittedAt = new Date();
 
-      if (input.answers.length > 0) {
+      if (normalizedAnswers.length > 0) {
         await db.insert(formResponseItemsTable).values(
-          input.answers.map(ans => ({
+          normalizedAnswers.map(ans => ({
             responseId,
             fieldId: ans.fieldId,
             fieldKey: ans.fieldKey,
@@ -1469,7 +1983,7 @@ export const formRouter = router({
 
       if (sendRespondentCopy && input.respondentEmail && notify?.formTitle) {
         const respondentAnswers = fields.map((field) => {
-          const answer = input.answers.find((a) => a.fieldId === field.id);
+          const answer = normalizedAnswers.find((a) => a.fieldId === field.id);
           return {
             label: field.label || field.key,
             value: answer?.value ?? null,

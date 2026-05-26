@@ -9,6 +9,7 @@ import { apiReference } from "@scalar/express-api-reference";
 import { serverRouter, createContext } from "@repo/trpc/server";
 import { authService } from "@repo/services/auth";
 import { googleOAuth2Client } from "@repo/services/clients/google-oauth";
+import { unlockProtectedFormBySlug } from "@repo/services/forms/access";
 
 import { env } from "./env";
 
@@ -29,6 +30,30 @@ if (env.NODE_ENV !== "prod") {
 }
 
 app.use(express.json());
+
+app.post("/forms/unlock", async (req, res) => {
+  const slug = typeof req.body?.slug === "string" ? req.body.slug : "";
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  if (!slug || !password) {
+    return res.status(400).json({ success: false, message: "slug and password are required" });
+  }
+
+  const unlocked = await unlockProtectedFormBySlug(slug, password);
+  if (!unlocked) {
+    return res.status(404).json({ success: false, message: "Protected form not found" });
+  }
+  const cookieName = `form_unlock_${unlocked.formId}`;
+  const secure = env.NODE_ENV === "prod";
+  const parts = [
+    `${cookieName}=1`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+  ];
+  if (secure) parts.push("Secure");
+  res.setHeader("Set-Cookie", parts.join("; "));
+  return res.json({ success: true });
+});
 
 app.get("/", (req, res) => {
   return res.json({ message: "Streamyst is up and running..." });

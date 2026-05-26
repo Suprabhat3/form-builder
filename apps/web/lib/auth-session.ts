@@ -10,6 +10,7 @@ export type AuthUser = {
   name: string;
   image: string | null;
   emailVerified: boolean;
+  role?: "USER" | "ADMIN";
 };
 
 export type PendingSignup = {

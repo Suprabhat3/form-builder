@@ -7,7 +7,18 @@ import { FormRenderer } from "~/components/forms/FormRenderer";
 import { TopNavBar } from "~/components/landing/TopNavBar";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import { getAuthUser } from "~/lib/auth-session";
+import { trpc } from "~/trpc/client";
 import {
   SparklesIcon,
   TvIcon,
@@ -155,11 +166,31 @@ export default function TemplatesPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [previewTheme, setPreviewTheme] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [cloneTarget, setCloneTarget] = useState<null | {
+    id: string;
+    title: string;
+    description: string | null;
+    themeKey: string;
+    isFeatured: boolean;
+  }>(null);
+  const [cloneTitle, setCloneTitle] = useState("");
 
   useEffect(() => {
     // Check if user is logged in
     setIsAuthenticated(!!getAuthUser());
   }, []);
+
+  const templatesQuery = trpc.form.listTemplates.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+
+  const cloneTemplate = trpc.form.cloneTemplate.useMutation({
+    onSuccess: (data) => {
+      setCloneTarget(null);
+      setCloneTitle("");
+      router.push(`/builder/${data.formId}`);
+    },
+  });
 
   // Filter templates based on category and search
   const filteredTemplates = TEMPLATES.filter((t) => {
@@ -173,6 +204,8 @@ export default function TemplatesPage() {
 
   const categories = ["All", ...Array.from(new Set(TEMPLATES.map((t) => t.category)))];
 
+  const themeByKey = new Map(TEMPLATES.map((t) => [t.key, t] as const));
+
   // Action for clicking "Use Template"
   const handleUseTemplate = (themeKey: string) => {
     if (isAuthenticated) {
@@ -180,6 +213,19 @@ export default function TemplatesPage() {
     } else {
       router.push(`/signup?theme=${themeKey}`);
     }
+  };
+
+  const openCloneDialog = (template: { id: string; title: string; description: string | null; themeKey: string; isFeatured: boolean }) => {
+    setCloneTarget(template);
+    setCloneTitle(`${template.title} copy`);
+  };
+
+  const handleClone = () => {
+    if (!cloneTarget) return;
+    cloneTemplate.mutate({
+      templateFormId: cloneTarget.id,
+      title: cloneTitle.trim() || undefined,
+    });
   };
 
   // Mock Form Structure to display in the Interactive Sandbox modal
@@ -402,6 +448,88 @@ export default function TemplatesPage() {
             <p className="text-xs text-muted-foreground mt-1">Try modifying your search or select another category.</p>
           </div>
         )}
+
+        {/* Template Library */}
+        <section className="mt-20">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+            <div>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/5 text-slate-600 text-xs font-bold mb-3 border border-slate-200/60 tracking-widest uppercase shadow-sm">
+                Template Library
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Use a saved template</h2>
+              <p className="text-sm text-slate-500 mt-2">
+                Clone featured templates or reuse your own saved forms.
+              </p>
+            </div>
+            {!isAuthenticated && (
+              <Button onClick={() => router.push("/login")} className="gap-2">
+                <SparklesIcon className="w-4 h-4" />
+                Sign in to unlock
+              </Button>
+            )}
+          </div>
+
+          {isAuthenticated && templatesQuery.isLoading && (
+            <div className="text-sm text-slate-500">Loading templates...</div>
+          )}
+
+          {isAuthenticated && templatesQuery.data && templatesQuery.data.length === 0 && (
+            <div className="text-center py-12 bg-white/40 border border-dashed rounded-2xl">
+              <SparklesIcon className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+              <h3 className="font-bold text-slate-700">No templates yet</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Save a form as a template to see it here.
+              </p>
+            </div>
+          )}
+
+          {isAuthenticated && templatesQuery.data && templatesQuery.data.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {templatesQuery.data.map((template) => {
+                const theme = themeByKey.get(template.themeKey);
+                return (
+                  <Card key={template.id} className="overflow-hidden border-slate-200/60 bg-white/80 hover:bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <div className="relative w-full aspect-video overflow-hidden border-b border-slate-100">
+                      {theme?.image ? (
+                        <img src={theme.image} alt={template.title} className="w-full h-full object-fill" />
+                      ) : (
+                        <div className={`w-full h-full bg-gradient-to-br ${theme?.bgClass ?? "from-slate-900 via-slate-800 to-slate-700"}`} />
+                      )}
+                      <div className="absolute top-3 left-3 flex gap-2">
+                        {template.isFeatured && (
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-white bg-emerald-500/90 px-2.5 py-1 rounded-full">
+                            Featured
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white bg-slate-900/70 px-2.5 py-1 rounded-full">
+                          {template.themeKey.replace(/-/g, " ")}
+                        </span>
+                      </div>
+                    </div>
+                    <CardHeader className="pb-3 pt-5">
+                      <CardTitle className="text-lg font-bold text-slate-800">
+                        {template.title}
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500 line-clamp-2">
+                        {template.description || "A curated template ready to clone and customize."}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardFooter className="p-5 bg-slate-50/70 border-t flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openCloneDialog(template)}
+                        className="flex-1 text-xs font-semibold"
+                      >
+                        Use Template
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </main>
 
       {/* FOOTER */}
@@ -467,6 +595,38 @@ export default function TemplatesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {cloneTarget && (
+        <Dialog open={!!cloneTarget} onOpenChange={(open) => !open && setCloneTarget(null)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold">Create form from template</DialogTitle>
+              <DialogDescription>
+                Choose a name for your new form. We will clone all fields and settings.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Label htmlFor="clone-title" className="text-xs font-semibold">
+                New form title
+              </Label>
+              <Input
+                id="clone-title"
+                value={cloneTitle}
+                onChange={(e) => setCloneTitle(e.target.value)}
+                placeholder="e.g. Team onboarding survey"
+              />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setCloneTarget(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleClone} disabled={cloneTemplate.isPending}>
+                {cloneTemplate.isPending ? "Cloning..." : "Create form"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

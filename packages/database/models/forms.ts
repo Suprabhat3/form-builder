@@ -67,6 +67,10 @@ export const formPublicSettingsTable = pgTable("form_public_settings", {
   creatorNotificationMode: creatorNotificationModeEnum("creator_notification_mode").notNull().default("IMMEDIATE"),
   creatorDigestIntervalHours: integer("creator_digest_interval_hours").notNull().default(1),
   lastDigestSentAt: timestamp("last_digest_sent_at", { withTimezone: true }),
+  thankYouTitle: varchar("thank_you_title", { length: 180 }),
+  thankYouBody: text("thank_you_body"),
+  thankYouCtaText: varchar("thank_you_cta_text", { length: 120 }),
+  thankYouCtaUrl: text("thank_you_cta_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -152,6 +156,17 @@ export const emailLogsTable = pgTable("email_logs", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const adminAuditLogsTable = pgTable("admin_audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  actorUserId: uuid("actor_user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  targetFormId: uuid("target_form_id").references(() => formsTable.id, { onDelete: "set null" }),
+  action: varchar("action", { length: 80 }).notNull(),
+  metadata: jsonb("metadata").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const formsRelations = relations(formsTable, ({ one, many }) => ({

@@ -10,7 +10,7 @@ import { Label } from "~/components/ui/label";
 import { Switch } from "~/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { ArrowLeftIcon, PlusIcon, Trash2Icon, GripVerticalIcon, SaveIcon, PencilIcon, ChevronUpIcon, ChevronDownIcon, Loader2Icon, AlertCircleIcon } from "lucide-react";
+import { ArrowLeftIcon, PlusIcon, Trash2Icon, GripVerticalIcon, SaveIcon, PencilIcon, ChevronUpIcon, ChevronDownIcon, Loader2Icon, AlertCircleIcon, XIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { toast } from "sonner";
 import { Textarea } from "~/components/ui/textarea";
@@ -153,6 +153,26 @@ function FormSettings({ form }: { form: any }) {
   const [respondentEmailCopyEnabled, setRespondentEmailCopyEnabled] = useState(
     form.notificationSettings?.respondentEmailCopyEnabled ?? true,
   );
+  const [collectRespondentEmail, setCollectRespondentEmail] = useState(
+    form.notificationSettings?.collectRespondentEmail ?? false,
+  );
+  const [showProgressBar, setShowProgressBar] = useState(
+    form.notificationSettings?.showProgressBar ?? true,
+  );
+  const [maxResponses, setMaxResponses] = useState(
+    form.notificationSettings?.maxResponses ? String(form.notificationSettings.maxResponses) : "",
+  );
+  const [expiresAt, setExpiresAt] = useState(
+    form.notificationSettings?.expiresAt ? new Date(form.notificationSettings.expiresAt).toISOString().slice(0, 16) : "",
+  );
+  const [closeMessage, setCloseMessage] = useState(form.notificationSettings?.closeMessage ?? "");
+  const [successMessage, setSuccessMessage] = useState(form.notificationSettings?.successMessage ?? "");
+  const [password, setPassword] = useState("");
+  const [clearPassword, setClearPassword] = useState(false);
+  const [thankYouTitle, setThankYouTitle] = useState(form.notificationSettings?.thankYouTitle ?? "");
+  const [thankYouBody, setThankYouBody] = useState(form.notificationSettings?.thankYouBody ?? "");
+  const [thankYouCtaText, setThankYouCtaText] = useState(form.notificationSettings?.thankYouCtaText ?? "");
+  const [thankYouCtaUrl, setThankYouCtaUrl] = useState(form.notificationSettings?.thankYouCtaUrl ?? "");
   const [creatorNotificationMode, setCreatorNotificationMode] = useState(
     form.notificationSettings?.creatorNotificationMode ?? "IMMEDIATE",
   );
@@ -183,6 +203,17 @@ function FormSettings({ form }: { form: any }) {
       visibility: visibility as any,
       creatorNotificationsEnabled,
       respondentEmailCopyEnabled,
+      collectRespondentEmail,
+      showProgressBar,
+      maxResponses: maxResponses ? Number(maxResponses) : null,
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+      closeMessage: closeMessage || null,
+      successMessage: successMessage || null,
+      password: clearPassword ? null : password ? password : undefined,
+      thankYouTitle: thankYouTitle || null,
+      thankYouBody: thankYouBody || null,
+      thankYouCtaText: thankYouCtaText || null,
+      thankYouCtaUrl: thankYouCtaUrl || null,
       creatorNotificationMode: creatorNotificationMode as any,
       creatorDigestIntervalHours: Number(creatorDigestIntervalHours) as 1 | 5 | 24,
     });
@@ -240,6 +271,53 @@ function FormSettings({ form }: { form: any }) {
             </div>
           </div>
           <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700">Expiry (optional)</Label>
+                <Input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700">Max responses (optional)</Label>
+                <Input type="number" min={1} value={maxResponses} onChange={(e) => setMaxResponses(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-slate-700">Close message</Label>
+              <Textarea value={closeMessage} onChange={(e) => setCloseMessage(e.target.value)} placeholder="Shown when form is closed." />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-slate-700">Success message</Label>
+              <Textarea value={successMessage} onChange={(e) => setSuccessMessage(e.target.value)} placeholder="Shown after submission." />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-slate-700">Password protection</Label>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Set new password" />
+              {form.notificationSettings?.hasPassword && (
+                <label className="text-xs text-slate-600 flex items-center gap-2">
+                  <input type="checkbox" checked={clearPassword} onChange={(e) => setClearPassword(e.target.checked)} />
+                  Clear existing password
+                </label>
+              )}
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="flex items-center justify-between border rounded-lg px-3 py-2">
+                <Label className="text-xs font-semibold text-slate-700">Collect respondent email</Label>
+                <Switch checked={collectRespondentEmail} onCheckedChange={setCollectRespondentEmail} />
+              </div>
+              <div className="flex items-center justify-between border rounded-lg px-3 py-2">
+                <Label className="text-xs font-semibold text-slate-700">Show progress bar</Label>
+                <Switch checked={showProgressBar} onCheckedChange={setShowProgressBar} />
+              </div>
+            </div>
+            <div className="space-y-2 pt-2 border-t">
+              <Label className="text-xs font-semibold text-slate-700">Custom Thank-you</Label>
+              <Input value={thankYouTitle} onChange={(e) => setThankYouTitle(e.target.value)} placeholder="Thank-you title" />
+              <Textarea value={thankYouBody} onChange={(e) => setThankYouBody(e.target.value)} placeholder="Thank-you body" />
+              <div className="grid sm:grid-cols-2 gap-2">
+                <Input value={thankYouCtaText} onChange={(e) => setThankYouCtaText(e.target.value)} placeholder="CTA text" />
+                <Input value={thankYouCtaUrl} onChange={(e) => setThankYouCtaUrl(e.target.value)} placeholder="CTA URL" />
+              </div>
+            </div>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-semibold text-slate-700">Respondent Email Copy</Label>
@@ -381,6 +459,7 @@ function FieldsEditor({ form }: { form: any }) {
               <FieldItem 
                 key={field.id} 
                 field={field} 
+                allFields={form.fields}
                 formId={form.id} 
                 isFirst={index === 0}
                 isLast={index === form.fields.length - 1}
@@ -435,6 +514,7 @@ function FieldsEditor({ form }: { form: any }) {
 
 function FieldItem({ 
   field, 
+  allFields,
   formId, 
   isFirst,
   isLast,
@@ -445,6 +525,7 @@ function FieldItem({
   isDeleting 
 }: { 
   field: any, 
+  allFields: any[],
   formId: string, 
   isFirst: boolean,
   isLast: boolean,
@@ -478,6 +559,37 @@ function FieldItem({
   const [minDate, setMinDate] = useState<string>(field.config?.minDate || "");
   const [maxDate, setMaxDate] = useState<string>(field.config?.maxDate || "");
   const [maxRating, setMaxRating] = useState<string>(field.config?.maxRating?.toString() || "5");
+  const existingRules = Array.isArray(field.config?.visibilityRules?.all)
+    ? field.config.visibilityRules.all
+    : [];
+  const [rules, setRules] = useState<{ fieldId: string; operator: string; value?: string }[]>(
+    existingRules.map((rule: { fieldId: string; operator: string; value?: unknown }) => ({
+      fieldId: rule.fieldId,
+      operator: rule.operator,
+      value: rule.value !== undefined && rule.value !== null ? String(rule.value) : "",
+    })),
+  );
+
+  const availableRuleFields = allFields.filter((f) => f.id !== field.id);
+
+  const addRule = () => {
+    const defaultField = availableRuleFields[0];
+    if (!defaultField) return;
+    setRules((prev) => [
+      ...prev,
+      { fieldId: defaultField.id, operator: "equals", value: "" },
+    ]);
+  };
+
+  const updateRule = (index: number, patch: Partial<{ fieldId: string; operator: string; value?: string }>) => {
+    setRules((prev) =>
+      prev.map((rule, idx) => (idx === index ? { ...rule, ...patch } : rule)),
+    );
+  };
+
+  const removeRule = (index: number) => {
+    setRules((prev) => prev.filter((_, idx) => idx !== index));
+  };
 
   const updateField = trpc.form.updateField.useMutation({
     onSuccess: () => {
@@ -502,6 +614,18 @@ function FieldItem({
     if (isRatingType) {
       const ratingMax = Number(maxRating);
       configToSave.maxRating = Number.isFinite(ratingMax) && ratingMax > 0 ? ratingMax : 5;
+    }
+    const normalizedRules = rules
+      .filter((rule) => rule.fieldId)
+      .map((rule) => ({
+        fieldId: rule.fieldId,
+        operator: rule.operator,
+        ...(rule.operator !== "is_empty" && rule.operator !== "is_not_empty"
+          ? { value: rule.value ?? "" }
+          : {}),
+      }));
+    if (normalizedRules.length > 0) {
+      configToSave.visibilityRules = { all: normalizedRules };
     }
 
     updateField.mutate({
@@ -586,6 +710,86 @@ function FieldItem({
               <Input type="number" min={1} value={maxRating} onChange={(e) => setMaxRating(e.target.value)} />
             </div>
           )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Conditional visibility (optional)</Label>
+                <p className="text-[11px] text-slate-500">All conditions must match for this field to show.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addRule}
+                disabled={availableRuleFields.length === 0}
+              >
+                Add condition
+              </Button>
+            </div>
+
+            {rules.length === 0 && (
+              <div className="text-xs text-slate-500 border border-dashed rounded-lg p-3 bg-slate-50">
+                No visibility rules set.
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {rules.map((rule, index) => (
+                <div key={`${field.id}-rule-${index}`} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-start">
+                  <Select
+                    value={rule.fieldId || "none"}
+                    onValueChange={(value) => updateRule(index, { fieldId: value === "none" ? "" : value })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Depends on field" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select field</SelectItem>
+                      {availableRuleFields.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={rule.operator}
+                    onValueChange={(value) =>
+                      updateRule(index, {
+                        operator: value,
+                        value: value === "is_empty" || value === "is_not_empty" ? "" : rule.value ?? "",
+                      })
+                    }
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="equals">equals</SelectItem>
+                      <SelectItem value="not_equals">not equals</SelectItem>
+                      <SelectItem value="contains">contains</SelectItem>
+                      <SelectItem value="not_contains">not contains</SelectItem>
+                      <SelectItem value="is_empty">is empty</SelectItem>
+                      <SelectItem value="is_not_empty">is not empty</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {rule.operator !== "is_empty" && rule.operator !== "is_not_empty" ? (
+                    <Input
+                      value={rule.value ?? ""}
+                      onChange={(e) => updateRule(index, { value: e.target.value })}
+                      placeholder="Value"
+                    />
+                  ) : (
+                    <Input disabled placeholder="No value needed" />
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => removeRule(index)}
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="flex items-center space-x-2">
             <Switch id={`req-${field.id}`} checked={required} onCheckedChange={setRequired} />

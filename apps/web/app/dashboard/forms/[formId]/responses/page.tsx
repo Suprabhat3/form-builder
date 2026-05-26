@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { RequireAuth } from "~/components/auth/RequireAuth";
 import { trpc } from "~/trpc/client";
@@ -22,9 +23,43 @@ export default function ResponsesPage({ params }: { params: Promise<{ formId: st
 function ResponsesContent({ params }: { params: Promise<{ formId: string }> }) {
   const { formId } = use(params);
   const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [isApplying, setIsApplying] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: form, isLoading: formLoading } = trpc.form.getById.useQuery({ formId });
-  const { data: responses, isLoading: responsesLoading } = trpc.form.getResponses.useQuery({ formId });
+  const {
+    data: responses,
+    isLoading: responsesLoading,
+    isFetching: responsesFetching,
+    refetch,
+  } = trpc.form.getResponses.useQuery({
+    formId,
+    search: search || undefined,
+    fromDate: fromDate ? new Date(fromDate).toISOString() : undefined,
+    toDate: toDate ? new Date(toDate).toISOString() : undefined,
+    page,
+    pageSize,
+  });
+  const exportCsv = trpc.form.exportResponsesCsv.useQuery(
+    {
+      formId,
+      search: search || undefined,
+      fromDate: fromDate ? new Date(fromDate).toISOString() : undefined,
+      toDate: toDate ? new Date(toDate).toISOString() : undefined,
+    },
+    { enabled: false },
+  );
+
+  const total = responses?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
+  const hasFilters = Boolean(search || fromDate || toDate);
 
   if (formLoading || responsesLoading) {
     return (
@@ -96,7 +131,66 @@ function ResponsesContent({ params }: { params: Promise<{ formId: string }> }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!responses || responses.length === 0 ? (
+            <div className="mb-4 flex flex-wrap gap-2 items-end">
+              <div>
+                <label className="text-xs text-slate-500">Search</label>
+                <input value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 border rounded px-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">From</label>
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-9 border rounded px-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">To</label>
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9 border rounded px-2 text-sm" />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsApplying(true);
+                  setPage(1);
+                  refetch().finally(() => setIsApplying(false));
+                }}
+                disabled={responsesFetching || isApplying}
+              >
+                {isApplying ? "Applying..." : "Apply"}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSearch("");
+                  setFromDate("");
+                  setToDate("");
+                  setPage(1);
+                }}
+                disabled={!hasFilters || responsesFetching}
+              >
+                Reset
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    setIsExporting(true);
+                    const data = await exportCsv.refetch();
+                    if (!data.data) return;
+                    const blob = new Blob([data.data.csv], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = data.data.filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
+                disabled={isExporting}
+              >
+                {isExporting ? "Exporting..." : "Export CSV"}
+              </Button>
+            </div>
+            {!responses || responses.items.length === 0 ? (
               <Empty className="border-slate-200">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
@@ -125,7 +219,7 @@ function ResponsesContent({ params }: { params: Promise<{ formId: string }> }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {responses.map((response) => (
+                  {responses.items.map((response) => (
                     <TableRow key={response.id} className="hover:bg-slate-50/50 transition-colors">
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -184,6 +278,43 @@ function ResponsesContent({ params }: { params: Promise<{ formId: string }> }) {
                   ))}
                 </TableBody>
               </Table>
+            )}
+            {responses && responses.items.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t border-slate-100 pt-4 mt-4">
+                <div className="text-xs text-slate-500">
+                  Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Rows</span>
+                    <select
+                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs"
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setPage(1);
+                      }}
+                    >
+                      {[10, 25, 50, 100].map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={!canPrev} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                      Prev
+                    </Button>
+                    <span className="text-xs text-slate-500">
+                      Page {page} of {totalPages}
+                    </span>
+                    <Button variant="outline" size="sm" disabled={!canNext} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

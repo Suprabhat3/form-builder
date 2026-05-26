@@ -30,6 +30,18 @@ function getClientIp(req: CreateContextOptions["req"]): string | null {
   return null;
 }
 
+function parseCookieHeader(cookieHeader: string | string[] | undefined): Record<string, string> {
+  const raw = Array.isArray(cookieHeader) ? cookieHeader.join(";") : cookieHeader;
+  if (!raw) return {};
+  const out: Record<string, string> = {};
+  for (const part of raw.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (!k || rest.length === 0) continue;
+    out[k] = decodeURIComponent(rest.join("="));
+  }
+  return out;
+}
+
 export async function createContext(opts: CreateContextOptions = {}) {
   const authorization = opts.req?.headers?.authorization;
   const token = typeof authorization === "string" && authorization.startsWith("Bearer ")
@@ -41,6 +53,7 @@ export async function createContext(opts: CreateContextOptions = {}) {
     user,
     headers: opts.req?.headers ?? {},
     clientIp: getClientIp(opts.req),
+    cookies: parseCookieHeader(opts.req?.headers?.cookie),
   };
 }
 

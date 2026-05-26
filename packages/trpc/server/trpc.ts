@@ -24,3 +24,10 @@ export const protectedProcedure = tRPCContext.procedure.use(async ({ ctx, next }
     },
   });
 });
+
+export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  if (ctx.user.role !== "ADMIN") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+  return next();
+});
