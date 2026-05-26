@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,7 +11,17 @@ import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { toast } from "sonner";
 import { trpc } from "~/trpc/client";
+import { env } from "~/env";
 import { CheckCircle2Icon, Loader2Icon, SparklesIcon, TerminalIcon, TrophyIcon, ShieldCheckIcon, CalendarIcon, HeartIcon, StarIcon } from "lucide-react";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: Record<string, unknown>) => string;
+      reset: (widgetId?: string) => void;
+    };
+  }
+}
 
 interface FormField {
   id: string;
@@ -41,6 +52,9 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const [submitted, setSubmitted] = useState(false);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileWidgetId, setTurnstileWidgetId] = useState<string | null>(null);
 
   const sessionKeyRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
@@ -49,6 +63,8 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   // Respondent Info (Required if settings require, or just nice-to-have)
   const [respondentEmail, setRespondentEmail] = useState("");
   const [respondentName, setRespondentName] = useState("");
+  const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+  const turnstileEnabled = !isPreview && !!env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const submitResponse = trpc.form.submitResponse.useMutation({
     onSuccess: () => {
@@ -56,6 +72,10 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       toast.success("Form submitted successfully!");
     },
     onError: (err) => {
+      if (turnstileEnabled && window.turnstile) {
+        window.turnstile.reset(turnstileWidgetId ?? undefined);
+        setCaptchaToken(null);
+      }
       toast.error(err.message || "Failed to submit response");
     },
   });
@@ -215,6 +235,11 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       return;
     }
 
+    if (turnstileEnabled && !captchaToken) {
+      toast.error("Please complete human verification before submitting.");
+      return;
+    }
+
     const submissionAnswers = form.fields.map((field) => ({
       fieldId: field.id,
       fieldKey: field.key,
@@ -226,9 +251,23 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       respondentEmail: respondentEmail || undefined,
       respondentName: respondentName || undefined,
       sessionKey: sessionKeyRef.current,
+      captchaToken,
       answers: submissionAnswers,
     });
   };
+
+  useEffect(() => {
+    if (!turnstileEnabled || !turnstileReady) return;
+    if (!window.turnstile || !turnstileContainerRef.current || turnstileWidgetId) return;
+
+    const widgetId = window.turnstile.render(turnstileContainerRef.current, {
+      sitekey: env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+      callback: (token: string) => setCaptchaToken(token),
+      "expired-callback": () => setCaptchaToken(null),
+      "error-callback": () => setCaptchaToken(null),
+    });
+    setTurnstileWidgetId(widgetId);
+  }, [turnstileEnabled, turnstileReady, turnstileWidgetId]);
 
   // Render Theme Decors
   const renderThemeDecorators = () => {
@@ -320,6 +359,13 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
 
   return (
     <div className={`theme-container theme-${form.themeKey} py-12 px-4 sm:px-6 relative`}>
+      {turnstileEnabled && (
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+          onLoad={() => setTurnstileReady(true)}
+        />
+      )}
       {renderThemeDecorators()}
       
       <div className="max-w-2xl mx-auto relative z-10">
@@ -567,6 +613,12 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
           })}
 
           {/* Submit Button */}
+          {turnstileEnabled && (
+            <div className="theme-card p-6 md:p-8">
+              <p className="text-xs theme-muted mb-3">Human verification</p>
+              <div ref={turnstileContainerRef} />
+            </div>
+          )}
           <div className="pt-4 flex justify-end">
             <Button
               type="submit"

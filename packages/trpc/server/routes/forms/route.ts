@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { createHash } from "crypto";
 import { and, asc, count, desc, eq, gte, inArray, sql } from "../../../../database";
 import {
   formFieldsTable,
@@ -149,6 +150,33 @@ function buildDigestNotificationHtml(params: {
     </a>
   </div>
 </div>`;
+}
+
+function hashSubmitterIp(ip: string): string {
+  const salt = env.RATE_LIMIT_SALT ?? env.JWT_ACCESS_SECRET;
+  return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+}
+
+async function verifyTurnstileToken(params: { token: string; ip?: string | null }): Promise<boolean> {
+  if (!env.TURNSTILE_SECRET_KEY) return true;
+  const payload = new URLSearchParams({
+    secret: env.TURNSTILE_SECRET_KEY,
+    response: params.token,
+  });
+  if (params.ip) payload.set("remoteip", params.ip);
+
+  try {
+    const result = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: payload,
+    });
+    if (!result.ok) return false;
+    const data = (await result.json()) as { success?: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
 }
 
 export const formRouter = router({
@@ -1233,7 +1261,17 @@ export const formRouter = router({
     .meta({ openapi: { method: "POST", path: getPath("/{formId}/submit"), tags: TAGS } })
     .input(submitResponseInputSchema)
     .output(z.object({ success: z.boolean(), responseId: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (env.TURNSTILE_SECRET_KEY) {
+        if (!input.captchaToken) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Human verification is required" });
+        }
+        const humanVerified = await verifyTurnstileToken({ token: input.captchaToken, ip: ctx.clientIp });
+        if (!humanVerified) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Human verification failed" });
+        }
+      }
+
       const form = await db
         .select({ id: formsTable.id, status: formsTable.status })
         .from(formsTable)
@@ -1246,6 +1284,47 @@ export const formRouter = router({
 
       if (form[0].status !== "PUBLISHED") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Only published forms can accept submissions" });
+      }
+
+      const submitterIpHash = ctx.clientIp ? hashSubmitterIp(ctx.clientIp) : null;
+      if (submitterIpHash) {
+        const now = Date.now();
+        const windowMs = env.FORM_SUBMIT_RATE_LIMIT_WINDOW_SECONDS * 1000;
+        const windowStart = new Date(now - windowMs);
+
+        const [globalByIp, perFormByIp] = await Promise.all([
+          db
+            .select({ total: count(formResponsesTable.id) })
+            .from(formResponsesTable)
+            .where(and(eq(formResponsesTable.submitterIpHash, submitterIpHash), gte(formResponsesTable.submittedAt, windowStart))),
+          db
+            .select({ total: count(formResponsesTable.id) })
+            .from(formResponsesTable)
+            .where(
+              and(
+                eq(formResponsesTable.submitterIpHash, submitterIpHash),
+                eq(formResponsesTable.formId, input.formId),
+                gte(formResponsesTable.submittedAt, windowStart),
+              ),
+            ),
+        ]);
+
+        const globalCount = Number(globalByIp[0]?.total ?? 0);
+        const perFormCount = Number(perFormByIp[0]?.total ?? 0);
+
+        if (globalCount >= env.FORM_SUBMIT_RATE_LIMIT_MAX_PER_IP_WINDOW) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Rate limit exceeded. Please wait before submitting again.",
+          });
+        }
+
+        if (perFormCount >= env.FORM_SUBMIT_RATE_LIMIT_MAX_PER_IP_FORM_WINDOW) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Rate limit exceeded for this form. Please try again shortly.",
+          });
+        }
       }
 
       const fields = await db
@@ -1278,7 +1357,9 @@ export const formRouter = router({
           formId: input.formId,
           respondentEmail: input.respondentEmail ?? null,
           respondentName: input.respondentName ?? null,
-          submitterUserAgent: null,
+          submitterIpHash,
+          submitterUserAgent:
+            typeof ctx.headers["user-agent"] === "string" ? ctx.headers["user-agent"] : null,
         })
         .returning({ id: formResponsesTable.id });
 
