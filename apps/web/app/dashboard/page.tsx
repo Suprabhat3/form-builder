@@ -14,11 +14,11 @@ import {
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { PlusIcon, SettingsIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, ExternalLinkIcon, Share2Icon, BarChart3Icon, ClipboardListIcon } from "lucide-react";
+import { PlusIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, ExternalLinkIcon, Share2Icon, BarChart3Icon, ClipboardListIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { toast } from "sonner";
 
@@ -35,27 +35,33 @@ const themeMetadata: Record<string, { bg: string; primary: string; secondary: st
 
 export default function DashboardPage() {
   const [createOpen, setCreateOpen] = useState(false);
-  const [prefillThemeKey, setPrefillThemeKey] = useState<string | null>(null);
-
-  const handleThemeSelect = (themeKey: string) => {
-    setPrefillThemeKey(themeKey);
-    setCreateOpen(true);
-  };
+  const router = useRouter();
 
   return (
     <RequireAuth>
       <main className="mx-auto max-w-6xl px-6 py-12">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="mt-1 text-muted-foreground">
+            <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+            <p className="mt-1.5 text-sm text-slate-500 font-medium">
               Manage your forms, view responses, and customize settings.
             </p>
           </div>
-          <CreateFormDialog open={createOpen} onOpenChange={setCreateOpen} defaultThemeKey={prefillThemeKey} />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button 
+              variant="outline" 
+              className="gap-2 bg-white hover:bg-slate-50 border-slate-200 shadow-sm font-semibold text-slate-700"
+              onClick={() => router.push('/templates')}
+            >
+              <SparklesIcon className="w-4 h-4 text-primary" />
+              Explore Templates
+            </Button>
+            <Suspense fallback={null}>
+              <CreateFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+            </Suspense>
+          </div>
         </div>
 
-        <ThemeExplorer onSelectTheme={handleThemeSelect} />
         <FormsList />
       </main>
     </RequireAuth>
@@ -254,87 +260,7 @@ function CreateFormDialog({
   );
 }
 
-function ThemeExplorer({ onSelectTheme }: { onSelectTheme: (themeKey: string) => void }) {
-  const { data: themes, isLoading } = trpc.form.getThemeCatalog.useQuery();
 
-  return (
-    <section className="mb-14">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 bg-slate-900 text-white rounded-3xl pb-8 p-8 relative overflow-hidden">
-        {/* Background glow effects */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4"></div>
-        
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-200">
-            <SparklesIcon className="h-3.5 w-3.5 text-primary" />
-            Theme Explorer
-          </div>
-          <h2 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">Pick a theme to jumpstart your form</h2>
-          <p className="mt-2 text-base text-slate-300 max-w-2xl">
-            Browse curated templates crafted for real-world events, communities, and product launches.
-            Each theme gives your form an instant visual identity.
-          </p>
-        </div>
-        <Button variant="default" size="lg" className="relative z-10 gap-2 font-bold bg-white text-slate-900 hover:bg-slate-100" onClick={() => onSelectTheme("silicon-minimal")}
-        >
-          Start from scratch
-          <PlusIcon className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center p-12 text-slate-500">Loading exquisite themes...</div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {themes?.map((theme) => {
-            const meta = themeMetadata[theme.key] || { bg: "#ffffff", primary: "#000000", secondary: "#cccccc", desc: "" };
-
-            return (
-              <Card key={theme.key} className="group overflow-hidden border-2 border-transparent bg-slate-50 hover:border-slate-300 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg relative">
-                <div
-                  className="h-32 p-4 relative overflow-hidden"
-                  style={{ backgroundColor: meta.bg }}
-                >
-                  <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(135deg, ${meta.primary}, transparent)` }} />
-                  {/* Mock Form Elements for Preview */}
-                  <div className="space-y-2 relative z-10 w-3/4">
-                    <div className="h-4 w-1/2 rounded bg-opacity-80" style={{ backgroundColor: meta.primary }} />
-                    <div className="h-8 w-full rounded border-2 shadow-sm bg-white" style={{ borderColor: meta.secondary + '40' }} />
-                    <div className="h-8 w-2/3 rounded-full mt-2" style={{ backgroundColor: meta.primary }} />
-                  </div>
-                </div>
-                <CardContent className="pt-4 space-y-3 bg-white relative">
-                  <div className="absolute top-0 right-4 -translate-y-1/2 bg-white p-1 rounded-full shadow-sm flex -space-x-1">
-                     <div className="h-5 w-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: meta.bg }} />
-                     <div className="h-5 w-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: meta.primary }} />
-                     <div className="h-5 w-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: meta.secondary }} />
-                  </div>
-                  
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">
-                      {theme.category}
-                    </span>
-                    <Badge variant="secondary" className="text-[10px] bg-slate-100">Template</Badge>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-800 leading-tight group-hover:text-primary transition-colors">{theme.label}</h3>
-                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed line-clamp-2">{meta.desc}</p>
-                  </div>
-                  <div className="pt-2">
-                    <Button size="sm" variant="default" className="w-full gap-2 font-medium bg-slate-800 hover:bg-slate-900 group-hover:bg-primary transition-colors shadow-none" onClick={() => onSelectTheme(theme.key)}>
-                      Use this template
-                      <SparklesIcon className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
 
 function ShareDialog({
   open,
@@ -462,146 +388,88 @@ function FormsList() {
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {forms.map((form) => (
-        <Card key={form.id} className="flex flex-col overflow-hidden">
-          <CardHeader className="pb-4">
-            <div className="flex justify-between items-start mb-2">
-              <Badge variant={form.status === "PUBLISHED" ? "default" : "secondary"}>
-                {form.status.toLowerCase()}
-              </Badge>
-              <div className="flex items-center text-xs text-muted-foreground gap-1">
-                {form.visibility === "PUBLIC" ? <GlobeIcon className="w-3 h-3" /> : <LockIcon className="w-3 h-3" />}
-                {form.visibility.toLowerCase()}
+        <Card key={form.id} className="group flex flex-col justify-between overflow-hidden border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 bg-white">
+          <div>
+            <div className="p-6 pb-4">
+              <div className="flex justify-between items-start mb-3">
+                <Badge
+                  variant={form.status === "PUBLISHED" ? "default" : "secondary"}
+                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider shadow-none ${
+                    form.status === "DRAFT"
+                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                      : ""
+                  }`}
+                >
+                  {form.status.toLowerCase()}
+                </Badge>
+                <div className="flex items-center text-xs text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                  {form.visibility === "PUBLIC" ? <GlobeIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> : <LockIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400" />}
+                  {form.visibility.toLowerCase()}
+                </div>
+              </div>
+              <CardTitle className="text-xl font-bold text-slate-900 group-hover:text-primary transition-colors line-clamp-1">
+                {form.title}
+              </CardTitle>
+              <div className="mt-2 flex items-center text-xs font-medium text-slate-500" suppressHydrationWarning>
+                Updated {new Date(form.updatedAt).toLocaleDateString()}
               </div>
             </div>
-            <CardTitle className="line-clamp-1">{form.title}</CardTitle>
-            <CardDescription className="text-xs mt-1">
-              Updated {new Date(form.updatedAt).toLocaleDateString()}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 pb-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-slate-800">{form.responseCount}</span> responses
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-center gap-2"
-              onClick={() => router.push(`/dashboard/forms/${form.id}/analytics`)}
-            >
-              <BarChart3Icon className="w-4 h-4" /> Analytics
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-center gap-2"
-              onClick={() => router.push(`/dashboard/forms/${form.id}/responses`)}
-            >
-              <ClipboardListIcon className="w-4 h-4" /> Responses
-            </Button>
             
-            {form.status === "PUBLISHED" && (
-              <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50/80 border text-xs">
-                <span className="truncate text-slate-500 select-all font-mono font-normal flex-1 text-[11px]">
-                  /f/{form.slug}
-                </span>
-                <div className="flex shrink-0 gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 text-slate-600 hover:text-primary hover:bg-slate-100"
-                    title="View Live Form"
-                    onClick={() => window.open(`/f/${form.slug}`, "_blank")}
-                  >
-                    <GlobeIcon className="w-3.5 h-3.5" />
+            <div className="px-6 pb-6">
+              <div className="flex flex-wrap items-end justify-between gap-4 bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+                <div>
+                  <div className="text-3xl font-black text-slate-900 tracking-tight leading-none">{form.responseCount}</div>
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-1.5">Responses</div>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" className="h-8 px-3 gap-1.5 bg-white shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:shadow transition-all cursor-pointer border-slate-200" onClick={() => router.push(`/dashboard/forms/${form.id}/analytics`)}>
+                    <BarChart3Icon className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-xs font-semibold">Analytics</span>
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 text-slate-600 hover:text-emerald-600 hover:bg-slate-100"
-                    title="Copy Link"
-                    onClick={() => {
-                      const url = `${window.location.origin}/f/${form.slug}`;
-                      navigator.clipboard.writeText(url);
-                      toast.success("Link copied to clipboard!");
-                    }}
-                  >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
+                  <Button variant="outline" size="sm" className="h-8 px-3 gap-1.5 bg-white shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:shadow transition-all cursor-pointer border-slate-200" onClick={() => router.push(`/dashboard/forms/${form.id}/responses`)}>
+                    <ClipboardListIcon className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-xs font-semibold">Responses</span>
                   </Button>
                 </div>
               </div>
-            )}
-          </CardContent>
-          <CardFooter className="bg-muted/50 p-4 flex flex-col gap-2 border-t">
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" onClick={() => router.push(`/builder/${form.id}`)}>
-                <SettingsIcon className="w-4 h-4 mr-2" /> Edit
-              </Button>
+            </div>
+          </div>
+
+          <CardFooter className="p-4 px-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+            <Button variant="ghost" size="sm" className="h-8 px-2.5 gap-1.5 font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 transition-all cursor-pointer" onClick={() => router.push(`/builder/${form.id}`)}>
+              <Edit3Icon className="w-4 h-4 text-slate-400" /> 
+              <span>Edit</span>
+            </Button>
+            
+            <div className="flex items-center gap-2">
               {form.status === "PUBLISHED" ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => {
+                <>
+                  <Button variant="default" size="sm" className="h-8 gap-1.5 shadow-sm font-semibold hover:opacity-90 hover:shadow transition-all cursor-pointer" onClick={() => {
                     setShareTarget({ title: form.title, slug: form.slug });
                     setShareOpen(true);
-                  }}
-                >
-                  <Share2Icon className="w-4 h-4" /> Share
-                </Button>
+                  }}>
+                    <Share2Icon className="w-3.5 h-3.5" /> Share
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 px-2 transition-all cursor-pointer" onClick={() => unpublishForm.mutate({ formId: form.id })} disabled={unpublishForm.isPending}>
+                    Unpublish
+                  </Button>
+                </>
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => {
+                <Button variant="default" size="sm" className="h-8 gap-1.5 bg-slate-800 hover:bg-slate-900 shadow-sm font-semibold transition-all cursor-pointer hover:shadow" onClick={() => {
                     setPendingShare({ id: form.id, title: form.title, slug: form.slug });
                     publishForm.mutate({ formId: form.id });
-                  }}
-                  disabled={publishForm.isPending || form.status === "ARCHIVED"}
-                >
-                  <SparklesIcon className="w-4 h-4" /> Publish & Share
+                }} disabled={publishForm.isPending || form.status === "ARCHIVED"}>
+                  <SparklesIcon className="w-3.5 h-3.5" /> Publish
                 </Button>
               )}
-            </div>
-
-            <div className="flex justify-between gap-2">
-              {form.status === "PUBLISHED" ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => unpublishForm.mutate({ formId: form.id })}
-                  disabled={unpublishForm.isPending}
-                >
-                  Unpublish
-                </Button>
-              ) : (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => publishForm.mutate({ formId: form.id })}
-                  disabled={publishForm.isPending || form.status === "ARCHIVED"}
-                >
-                  Publish
-                </Button>
-              )}
-
+              
               {form.status !== "ARCHIVED" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    if (confirm("Are you sure you want to archive this form?")) {
-                      archiveForm.mutate({ formId: form.id });
-                    }
-                  }}
-                  disabled={archiveForm.isPending}
-                >
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 ml-1.5 transition-all cursor-pointer" onClick={() => {
+                  if (confirm("Are you sure you want to archive this form?")) {
+                    archiveForm.mutate({ formId: form.id });
+                  }
+                }} disabled={archiveForm.isPending} title="Archive Form">
                   <Trash2Icon className="w-4 h-4" />
                 </Button>
               )}

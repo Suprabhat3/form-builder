@@ -10,11 +10,12 @@ import { Label } from "~/components/ui/label";
 import { Switch } from "~/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { ArrowLeftIcon, PlusIcon, Trash2Icon, GripVerticalIcon, SaveIcon, PencilIcon, ChevronUpIcon, ChevronDownIcon } from "lucide-react";
+import { ArrowLeftIcon, PlusIcon, Trash2Icon, GripVerticalIcon, SaveIcon, PencilIcon, ChevronUpIcon, ChevronDownIcon, Loader2Icon, AlertCircleIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { toast } from "sonner";
 import { Textarea } from "~/components/ui/textarea";
 import { FormRenderer } from "~/components/forms/FormRenderer";
+
 
 export default function BuilderPage({ params }: { params: Promise<{ formId: string }> }) {
   return (
@@ -31,11 +32,44 @@ function BuilderContent({ params }: { params: Promise<{ formId: string }> }) {
   const { data: form, isLoading } = trpc.form.getById.useQuery({ formId });
   
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading builder...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/50 px-6">
+        <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-900/5">
+            <Loader2Icon className="w-8 h-8 text-indigo-600 animate-spin" />
+          </div>
+          <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest animate-pulse">
+            Loading Builder...
+          </p>
+        </div>
+      </div>
+    );
   }
-  
+
   if (!form) {
-    return <div className="flex h-screen items-center justify-center">Form not found</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/50 px-6 py-12 text-center">
+        <div className="max-w-md w-full p-8 flex flex-col items-center gap-6 bg-white rounded-3xl shadow-xl ring-1 ring-slate-900/5 animate-in fade-in zoom-in-95 duration-300">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center border border-red-100 text-red-500">
+            <AlertCircleIcon className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">Form Not Found</h1>
+            <p className="text-sm text-slate-500 font-medium">
+              We couldn't locate this form. It may have been deleted, or the URL might be incorrect.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 w-full pt-4">
+            <Button 
+              onClick={() => router.push("/dashboard")} 
+              className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
+            >
+              <ArrowLeftIcon className="w-4 h-4" /> Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -61,23 +95,31 @@ function BuilderContent({ params }: { params: Promise<{ formId: string }> }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {form.status === "PUBLISHED" && (
-            <Button variant="default" size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold" onClick={() => window.open(`/f/${form.slug}`, "_blank")}>
+          {form.status === "PUBLISHED" ? (
+            <Button variant="default" size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold cursor-pointer shadow-sm" onClick={() => window.open(`/f/${form.slug}`, "_blank")}>
               View Live Form
             </Button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full border border-amber-200/60 shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Draft Mode</span>
+            </div>
           )}
-          <Button disabled variant="outline" size="sm" className="gap-2 bg-slate-100 text-slate-500 border-slate-200">
-            <SaveIcon className="w-4 h-4" /> Auto-saved
-          </Button>
         </div>
       </header>
 
       <main className="flex-1 container max-w-5xl mx-auto py-8 px-4 sm:px-6">
         <Tabs defaultValue="fields" className="w-full">
-          <TabsList className="mb-8 bg-slate-200/50 p-1 flex w-full max-w-md mx-auto rounded-full shadow-inner">
-            <TabsTrigger value="fields" className="flex-1 rounded-full text-xs font-semibold py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">Builder</TabsTrigger>
-            <TabsTrigger value="settings" className="flex-1 rounded-full text-xs font-semibold py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">Settings</TabsTrigger>
-            <TabsTrigger value="preview" className="flex-1 rounded-full text-xs font-semibold py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">Live Preview</TabsTrigger>
+          <TabsList 
+            className="mb-8 bg-slate-200/60 p-1 mx-auto rounded-xl shadow-inner h-11 relative"
+            style={{ display: "flex", width: "100%", maxWidth: "28rem" }}
+          >
+            <TabsTrigger value="fields" className="flex-1 rounded-lg text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-600 transition-all">Builder</TabsTrigger>
+            <TabsTrigger value="settings" className="flex-1 rounded-lg text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-600 transition-all">Settings</TabsTrigger>
+            <TabsTrigger value="preview" className="flex-1 rounded-lg text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-600 transition-all">Live Preview</TabsTrigger>
           </TabsList>
           
           <TabsContent value="fields" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
@@ -302,14 +344,19 @@ function FieldsEditor({ form }: { form: any }) {
     <div className="flex flex-col md:flex-row gap-8">
       <div className="flex-1 space-y-5">
         {form.fields.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-4 bg-white border-2 border-dashed border-slate-200 rounded-3xl text-center">
-            <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-sm">
+          <div className="py-20 bg-white border-2 border-dashed border-slate-200 rounded-3xl w-full min-h-75 flex flex-col items-center justify-center text-center px-6">
+            <div className="bg-slate-50 text-slate-400 shadow-sm ring-1 ring-slate-100 size-16 rounded-2xl flex items-center justify-center mb-4">
               <PlusIcon className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 tracking-tight">Your form is empty</h3>
-            <p className="text-sm text-slate-500 mt-2 max-w-sm">
-              Get started by adding fields from the menu on the right. Build exactly what you need.
-            </p>
+            <div className="w-full max-w-md min-w-[16rem] self-stretch mx-auto text-center">
+              <h3 className="text-lg font-bold text-slate-800  mb-2">Your form is empty</h3>
+              <p
+                className="text-sm text-slate-500 leading-relaxed mx-auto"
+                style={{ width: "min(32rem, 100%)" }}
+              >
+                Get started by adding fields from the menu on the right. Build exactly what you need.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -334,7 +381,7 @@ function FieldsEditor({ form }: { form: any }) {
       <div className="w-full md:w-72 space-y-4">
         <Card className="sticky top-24 border-slate-200/60 shadow-sm backdrop-blur-sm bg-white/60">
           <CardHeader className="pb-4 border-b border-slate-100 bg-slate-50/50">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 pt-4">
               <PlusIcon className="w-3.5 h-3.5" />
               Add Field
             </CardTitle>
@@ -542,7 +589,7 @@ function FieldItem({
             {field.helperText && <CardDescription className="mt-1.5 text-sm text-slate-500">{field.helperText}</CardDescription>}
           </div>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-50 p-1 rounded-xl shadow-sm border border-slate-100">
+        <div className="flex items-center gap-1 transition-all duration-200 bg-slate-50 p-1 rounded-xl shadow-sm border border-slate-200">
           <Button 
             variant="ghost" 
             size="icon" 
