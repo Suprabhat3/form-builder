@@ -390,10 +390,12 @@ function FieldsEditor({ form }: { form: any }) {
             {[
               { type: "SHORT_TEXT", label: "Short Text", icon: "Aa" },
               { type: "LONG_TEXT", label: "Long Text", icon: "¶" },
+              { type: "EMAIL", label: "Email", icon: "@" },
               { type: "NUMBER", label: "Number", icon: "123" },
               { type: "SINGLE_SELECT", label: "Single Select", icon: "◉" },
               { type: "MULTI_SELECT", label: "Multi Select", icon: "☑" },
               { type: "CHECKBOX", label: "Checkbox", icon: "✓" },
+              { type: "RATING", label: "Rating", icon: "5" },
               { type: "DATE", label: "Date", icon: "📅" },
             ].map((t) => (
               <Button 
@@ -448,15 +450,17 @@ function FieldItem({
   const [options, setOptions] = useState<string[]>((field.config?.options as string[]) || ["Option 1", "Option 2"]);
 
   // Type specific constraints
-  const isTextType = ["SHORT_TEXT", "LONG_TEXT"].includes(field.type);
+  const isTextType = ["SHORT_TEXT", "LONG_TEXT", "EMAIL"].includes(field.type);
   const isNumberType = field.type === "NUMBER";
   const isDateType = field.type === "DATE";
+  const isRatingType = field.type === "RATING";
 
   const [maxLength, setMaxLength] = useState<string>(field.config?.maxLength?.toString() || "");
   const [minVal, setMinVal] = useState<string>(field.config?.min?.toString() || "");
   const [maxVal, setMaxVal] = useState<string>(field.config?.max?.toString() || "");
   const [minDate, setMinDate] = useState<string>(field.config?.minDate || "");
   const [maxDate, setMaxDate] = useState<string>(field.config?.maxDate || "");
+  const [maxRating, setMaxRating] = useState<string>(field.config?.maxRating?.toString() || "5");
 
   const updateField = trpc.form.updateField.useMutation({
     onSuccess: () => {
@@ -477,6 +481,10 @@ function FieldItem({
     if (isDateType) {
       if (minDate) configToSave.minDate = minDate;
       if (maxDate) configToSave.maxDate = maxDate;
+    }
+    if (isRatingType) {
+      const ratingMax = Number(maxRating);
+      configToSave.maxRating = Number.isFinite(ratingMax) && ratingMax > 0 ? ratingMax : 5;
     }
 
     updateField.mutate({
@@ -552,6 +560,13 @@ function FieldItem({
                 <Label>Maximum Date (Optional)</Label>
                 <Input type="date" value={maxDate} onChange={(e) => setMaxDate(e.target.value)} />
               </div>
+            </div>
+          )}
+
+          {isRatingType && (
+            <div className="space-y-2">
+              <Label>Maximum Rating</Label>
+              <Input type="number" min={1} value={maxRating} onChange={(e) => setMaxRating(e.target.value)} />
             </div>
           )}
 
@@ -632,20 +647,27 @@ function FieldItem({
           <div className="text-sm text-slate-500 border-l-2 border-slate-100 pl-4 py-1 space-y-2">
             {options.slice(0, 3).map((opt, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className={`w-3 h-3 border border-slate-300 ${field.type === 'SINGLE_SELECT' ? 'rounded-full' : 'rounded-sm'} shrink-0`} />
+                <div
+                  className={`w-3 h-3 border border-slate-300 ${field.type === "SINGLE_SELECT" ? "rounded-full" : "rounded-sm"} shrink-0`}
+                />
                 <span>{opt}</span>
               </div>
             ))}
-            {options.length > 3 && <div className="text-xs font-semibold text-slate-400 mt-2 px-1">+{options.length - 3} more options</div>}
+            {options.length > 3 && (
+              <div className="text-xs font-semibold text-slate-400 mt-2 px-1">+{options.length - 3} more options</div>
+            )}
           </div>
         </CardContent>
       )}
-      
+
       {!isOptionsType && Object.keys(field.config || {}).length > 0 && (
         <CardContent className="pt-0 pb-5 pl-12">
           <div className="flex flex-wrap gap-2">
             {Object.entries(field.config).map(([k, v]) => (
-              <span key={k} className="text-[10px] font-mono font-semibold bg-slate-50 border border-slate-100 px-2 py-1 rounded-md text-slate-500">
+              <span
+                key={k}
+                className="text-[10px] font-mono font-semibold bg-slate-50 border border-slate-100 px-2 py-1 rounded-md text-slate-500"
+              >
                 {k}: <span className="text-slate-700">{String(v)}</span>
               </span>
             ))}

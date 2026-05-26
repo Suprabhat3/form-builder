@@ -10,7 +10,7 @@ import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { toast } from "sonner";
 import { trpc } from "~/trpc/client";
-import { CheckCircle2Icon, Loader2Icon, SparklesIcon, TerminalIcon, TrophyIcon, ShieldCheckIcon, CalendarIcon, HeartIcon } from "lucide-react";
+import { CheckCircle2Icon, Loader2Icon, SparklesIcon, TerminalIcon, TrophyIcon, ShieldCheckIcon, CalendarIcon, HeartIcon, StarIcon } from "lucide-react";
 
 interface FormField {
   id: string;
@@ -156,6 +156,18 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const handleCheckboxToggle = (fieldId: string, checked: boolean) => {
     trackStart();
     setAnswers((prev) => ({ ...prev, [fieldId]: checked }));
+    if (errors[fieldId]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[fieldId];
+        return next;
+      });
+    }
+  };
+
+  const handleRatingChange = (fieldId: string, rating: number) => {
+    trackStart();
+    setAnswers((prev) => ({ ...prev, [fieldId]: rating }));
     if (errors[fieldId]) {
       setErrors((prev) => {
         const next = { ...prev };
@@ -404,6 +416,17 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
                     />
                   )}
 
+                  {field.type === "EMAIL" && (
+                    <Input
+                      type="email"
+                      placeholder={field.placeholder || "name@example.com"}
+                      value={answers[field.id] || ""}
+                      onChange={(e) => handleTextChange(field.id, e.target.value)}
+                      maxLength={field.config?.maxLength}
+                      className="theme-input w-full h-10 px-3 bg-transparent"
+                    />
+                  )}
+
                   {field.type === "LONG_TEXT" && (
                     <Textarea
                       placeholder={field.placeholder || "Type a longer answer here..."}
@@ -508,6 +531,27 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
                       {options.length === 0 && (
                         <p className="text-xs italic theme-muted">No options configured.</p>
                       )}
+                    </div>
+                  )}
+
+                  {field.type === "RATING" && (
+                    <div className="flex items-center gap-2">
+                      {Array.from({ length: Math.max(1, Number(field.config?.maxRating) || 5) }).map((_, idx) => {
+                        const value = idx + 1;
+                        const isActive = Number(answers[field.id] || 0) >= value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => handleRatingChange(field.id, value)}
+                            className={`p-1 rounded-full transition-colors ${isActive ? "text-primary" : "text-slate-400"}`}
+                            aria-label={`Rate ${value}`}
+                          >
+                            <StarIcon className={`w-6 h-6 ${isActive ? "fill-current" : ""}`} />
+                          </button>
+                        );
+                      })}
+                      <span className="text-xs theme-muted">{answers[field.id] || 0} / {field.config?.maxRating || 5}</span>
                     </div>
                   )}
                 </div>

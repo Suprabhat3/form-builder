@@ -15,16 +15,23 @@ import {
 } from "../../../../database/schema";
 import {
   addFormFieldInputSchema,
+  analyticsEventTypeSchema,
   createFormInputSchema,
+  creatorDigestIntervalHoursSchema,
+  creatorNotificationModeSchema,
   formFieldIdInputSchema,
   formIdInputSchema,
   formStatusSchema,
   formThemeCatalog,
   formThemeKeySchema,
   formVisibilitySchema,
-  creatorNotificationModeSchema,
-  creatorDigestIntervalHoursSchema,
+  getAnalyticsOverviewInputSchema,
+  getBySlugInputSchema,
+  getResponseDetailInputSchema,
+  getResponsesInputSchema,
+  recordAnalyticsEventInputSchema,
   reorderFormFieldsInputSchema,
+  submitResponseInputSchema,
   updateFormFieldInputSchema,
   updateFormInputSchema,
 } from "@repo/services/forms/model";
@@ -88,19 +95,8 @@ function fieldKeyFromType(type: (typeof fieldTypeEnum.enumValues)[number], idx: 
   return `${prefix}_${idx}`;
 }
 
-const analyticsEventTypeSchema = z.enum(["VIEW", "START", "SUBMIT"]);
 const TAGS = ["Forms"];
 const getPath = generatePath("/forms");
-
-const recordAnalyticsEventInputSchema = z.object({
-  formId: z.string().uuid(),
-  eventType: analyticsEventTypeSchema.refine((value) => value !== "SUBMIT", {
-    message: "SUBMIT is recorded automatically",
-  }),
-  sessionKey: z.string().optional().nullable(),
-  source: z.string().optional().nullable(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
 
 function escapeHtml(input: string): string {
   return input
@@ -649,7 +645,7 @@ export const formRouter = router({
 
   getBySlug: publicProcedure
     .meta({ openapi: { method: "GET", path: getPath("/slug/{slug}"), tags: TAGS } })
-    .input(z.object({ slug: z.string() }))
+    .input(getBySlugInputSchema)
     .output(
       z.object({
         id: z.string().uuid(),
@@ -788,12 +784,7 @@ export const formRouter = router({
 
   getAnalyticsOverview: protectedProcedure
     .meta({ openapi: { method: "GET", path: getPath("/{formId}/analytics"), tags: TAGS } })
-    .input(
-      z.object({
-        formId: z.string().uuid(),
-        rangeDays: z.number().int().min(1).max(365).default(30),
-      }),
-    )
+    .input(getAnalyticsOverviewInputSchema)
     .output(
       z.object({
         form: z.object({
@@ -1089,7 +1080,7 @@ export const formRouter = router({
 
   getResponses: protectedProcedure
     .meta({ openapi: { method: "GET", path: getPath("/{formId}/responses"), tags: TAGS } })
-    .input(z.object({ formId: z.string().uuid() }))
+    .input(getResponsesInputSchema)
     .output(
       z.array(
         z.object({
@@ -1174,12 +1165,7 @@ export const formRouter = router({
 
   getResponseDetail: protectedProcedure
     .meta({ openapi: { method: "GET", path: getPath("/{formId}/responses/{responseId}"), tags: TAGS } })
-    .input(
-      z.object({
-        formId: z.string().uuid(),
-        responseId: z.string().uuid(),
-      }),
-    )
+    .input(getResponseDetailInputSchema)
     .output(
       z.object({
         response: z.object({
@@ -1245,21 +1231,7 @@ export const formRouter = router({
 
   submitResponse: publicProcedure
     .meta({ openapi: { method: "POST", path: getPath("/{formId}/submit"), tags: TAGS } })
-    .input(
-      z.object({
-        formId: z.string().uuid(),
-        respondentEmail: z.string().email().optional().nullable(),
-        respondentName: z.string().optional().nullable(),
-        sessionKey: z.string().optional().nullable(),
-        answers: z.array(
-          z.object({
-            fieldId: z.string().uuid(),
-            fieldKey: z.string(),
-            value: z.unknown(),
-          }),
-        ),
-      }),
-    )
+    .input(submitResponseInputSchema)
     .output(z.object({ success: z.boolean(), responseId: z.string().uuid() }))
     .mutation(async ({ input }) => {
       const form = await db

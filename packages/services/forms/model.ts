@@ -17,6 +17,18 @@ export const fieldTypeSchema = z.enum([
   "DATE",
 ]);
 
+export const formFieldConfigSchema = z
+  .object({
+    options: z.array(z.string()).min(1).optional(),
+    maxLength: z.number().int().positive().optional(),
+    min: z.number().optional(),
+    max: z.number().optional(),
+    minDate: z.string().optional(),
+    maxDate: z.string().optional(),
+    maxRating: z.number().int().positive().optional(),
+  })
+  .strict();
+
 export const formThemeCatalog = [
   { key: "movie-noir", label: "Movie Noir", category: "Movies" },
   { key: "anime-neon", label: "Anime Neon", category: "Anime" },
@@ -74,7 +86,7 @@ export const addFormFieldInputSchema = z.object({
   helperText: z.string().optional(),
   placeholder: z.string().optional(),
   required: z.boolean().default(false),
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: formFieldConfigSchema.optional(),
 });
 
 export const updateFormFieldInputSchema = z.object({
@@ -84,10 +96,55 @@ export const updateFormFieldInputSchema = z.object({
   helperText: z.string().optional(),
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: formFieldConfigSchema.optional(),
 });
 
 export const reorderFormFieldsInputSchema = z.object({
   formId: z.string().uuid(),
   fieldIdsInOrder: z.array(z.string().uuid()),
+});
+
+export const analyticsEventTypeSchema = z.enum(["VIEW", "START", "SUBMIT"]);
+
+export const recordAnalyticsEventInputSchema = z.object({
+  formId: z.string().uuid(),
+  eventType: analyticsEventTypeSchema.refine((value) => value !== "SUBMIT", {
+    message: "SUBMIT is recorded automatically",
+  }),
+  sessionKey: z.string().optional().nullable(),
+  source: z.string().optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const getBySlugInputSchema = z.object({
+  slug: z.string(),
+});
+
+export const getAnalyticsOverviewInputSchema = z.object({
+  formId: z.string().uuid(),
+  rangeDays: z.number().int().min(1).max(365).default(30),
+});
+
+export const getResponsesInputSchema = z.object({
+  formId: z.string().uuid(),
+});
+
+export const getResponseDetailInputSchema = z.object({
+  formId: z.string().uuid(),
+  responseId: z.string().uuid(),
+});
+
+export const submitResponseInputSchema = z.object({
+  formId: z.string().uuid(),
+  respondentEmail: z.string().email().optional().nullable(),
+  respondentName: z.string().optional().nullable(),
+  sessionKey: z.string().optional().nullable(),
+  captchaToken: z.string().min(1).optional().nullable(),
+  answers: z.array(
+    z.object({
+      fieldId: z.string().uuid(),
+      fieldKey: z.string(),
+      value: z.unknown(),
+    }),
+  ),
 });

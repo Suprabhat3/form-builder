@@ -4,8 +4,31 @@ import { IncomingHttpHeaders } from "http";
 type CreateContextOptions = {
   req?: {
     headers: IncomingHttpHeaders;
+    ip?: string;
+    socket?: {
+      remoteAddress?: string;
+    };
   };
 };
+
+function firstHeaderValue(value: string | string[] | undefined): string | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function getClientIp(req: CreateContextOptions["req"]): string | null {
+  if (!req) return null;
+  const forwardedFor = firstHeaderValue(req.headers["x-forwarded-for"]);
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0]?.trim();
+    if (firstIp) return firstIp;
+  }
+  const realIp = firstHeaderValue(req.headers["x-real-ip"]);
+  if (realIp) return realIp.trim();
+  if (req.ip) return req.ip;
+  if (req.socket?.remoteAddress) return req.socket.remoteAddress;
+  return null;
+}
 
 export async function createContext(opts: CreateContextOptions = {}) {
   const authorization = opts.req?.headers?.authorization;
@@ -16,6 +39,8 @@ export async function createContext(opts: CreateContextOptions = {}) {
 
   return {
     user,
+    headers: opts.req?.headers ?? {},
+    clientIp: getClientIp(opts.req),
   };
 }
 
