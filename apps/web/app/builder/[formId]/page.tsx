@@ -150,6 +150,9 @@ function FormSettings({ form }: { form: any }) {
   const [creatorNotificationsEnabled, setCreatorNotificationsEnabled] = useState(
     form.notificationSettings?.creatorNotificationsEnabled ?? false,
   );
+  const [respondentEmailCopyEnabled, setRespondentEmailCopyEnabled] = useState(
+    form.notificationSettings?.respondentEmailCopyEnabled ?? true,
+  );
   const [creatorNotificationMode, setCreatorNotificationMode] = useState(
     form.notificationSettings?.creatorNotificationMode ?? "IMMEDIATE",
   );
@@ -179,6 +182,7 @@ function FormSettings({ form }: { form: any }) {
       themeKey: themeKey as any,
       visibility: visibility as any,
       creatorNotificationsEnabled,
+      respondentEmailCopyEnabled,
       creatorNotificationMode: creatorNotificationMode as any,
       creatorDigestIntervalHours: Number(creatorDigestIntervalHours) as 1 | 5 | 24,
     });
@@ -236,6 +240,19 @@ function FormSettings({ form }: { form: any }) {
             </div>
           </div>
           <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label className="text-sm font-semibold text-slate-700">Respondent Email Copy</Label>
+                <p className="text-xs text-slate-500">
+                  Allow respondents to optionally receive a copy of their submitted answers.
+                </p>
+              </div>
+              <Switch
+                checked={respondentEmailCopyEnabled}
+                onCheckedChange={setRespondentEmailCopyEnabled}
+              />
+            </div>
+
             <div className="flex items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-semibold text-slate-700">Email Notifications</Label>

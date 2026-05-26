@@ -69,6 +69,7 @@ export const updateFormInputSchema = z.object({
   visibility: formVisibilitySchema.optional(),
   themeKey: formThemeKeySchema.optional(),
   creatorNotificationsEnabled: z.boolean().optional(),
+  respondentEmailCopyEnabled: z.boolean().optional(),
   creatorNotificationMode: creatorNotificationModeSchema.optional(),
   creatorDigestIntervalHours: creatorDigestIntervalHoursSchema.optional(),
 });
@@ -138,6 +139,7 @@ export const submitResponseInputSchema = z.object({
   formId: z.string().uuid(),
   respondentEmail: z.string().email().optional().nullable(),
   respondentName: z.string().optional().nullable(),
+  sendRespondentCopy: z.boolean().optional().default(false),
   sessionKey: z.string().optional().nullable(),
   captchaToken: z.string().min(1).optional().nullable(),
   answers: z.array(

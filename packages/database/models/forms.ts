@@ -63,6 +63,7 @@ export const formPublicSettingsTable = pgTable("form_public_settings", {
   collectRespondentEmail: boolean("collect_respondent_email").notNull().default(false),
   showProgressBar: boolean("show_progress_bar").notNull().default(true),
   creatorNotificationsEnabled: boolean("creator_notifications_enabled").notNull().default(false),
+  respondentEmailCopyEnabled: boolean("respondent_email_copy_enabled").notNull().default(true),
   creatorNotificationMode: creatorNotificationModeEnum("creator_notification_mode").notNull().default("IMMEDIATE"),
   creatorDigestIntervalHours: integer("creator_digest_interval_hours").notNull().default(1),
   lastDigestSentAt: timestamp("last_digest_sent_at", { withTimezone: true }),

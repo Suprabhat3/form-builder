@@ -40,6 +40,7 @@ interface FormDetails {
   title: string;
   description: string | null;
   themeKey: string;
+  respondentEmailCopyEnabled?: boolean;
   fields: FormField[];
 }
 
@@ -63,8 +64,10 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   // Respondent Info (Required if settings require, or just nice-to-have)
   const [respondentEmail, setRespondentEmail] = useState("");
   const [respondentName, setRespondentName] = useState("");
+  const [sendRespondentCopy, setSendRespondentCopy] = useState(false);
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileEnabled = !isPreview && !!env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const respondentCopyEnabled = form.respondentEmailCopyEnabled ?? true;
 
   const submitResponse = trpc.form.submitResponse.useMutation({
     onSuccess: () => {
@@ -250,6 +253,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       formId: form.id,
       respondentEmail: respondentEmail || undefined,
       respondentName: respondentName || undefined,
+      sendRespondentCopy: respondentCopyEnabled && sendRespondentCopy && !!respondentEmail.trim(),
       sessionKey: sessionKeyRef.current,
       captchaToken,
       answers: submissionAnswers,
@@ -430,6 +434,17 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
                 />
               </div>
             </div>
+            {respondentCopyEnabled && respondentEmail.trim().length > 0 && (
+              <label className="flex items-center gap-2 text-sm theme-muted cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sendRespondentCopy}
+                  onChange={(e) => setSendRespondentCopy(e.target.checked)}
+                  className="w-4 h-4 rounded border border-slate-400"
+                />
+                Email me a copy of my submitted response
+              </label>
+            )}
           </div>
 
           {/* Form Dynamic Fields */}

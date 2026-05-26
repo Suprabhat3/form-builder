@@ -152,6 +152,52 @@ function buildDigestNotificationHtml(params: {
 </div>`;
 }
 
+function formatAnswerValue(value: unknown): string {
+  if (value === null || value === undefined) return "Not answered";
+  if (Array.isArray(value)) return value.length > 0 ? value.map(v => String(v)).join(", ") : "Not answered";
+  if (typeof value === "object") return JSON.stringify(value);
+  const text = String(value).trim();
+  return text.length > 0 ? text : "Not answered";
+}
+
+function buildRespondentReceiptHtml(params: {
+  formTitle: string;
+  respondentName: string;
+  submittedAt: Date;
+  answers: Array<{ label: string; value: unknown }>;
+}): string {
+  const rows = params.answers
+    .map((item) => {
+      return `
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;font-weight:600;color:#0f172a;">${escapeHtml(item.label)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#334155;">${escapeHtml(formatAnswerValue(item.value))}</td>
+        </tr>`;
+    })
+    .join("");
+
+  return `
+<div style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px;color:#0f172a;">
+  <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;">
+    <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;">Form Builder</div>
+    <h1 style="margin:8px 0 12px;font-size:22px;line-height:1.3;">Your response has been recorded</h1>
+    <p style="margin:0 0 8px;color:#334155;">Hi ${escapeHtml(params.respondentName)}, here is a copy of your submission for <strong>${escapeHtml(params.formTitle)}</strong>.</p>
+    <p style="margin:0 0 16px;color:#64748b;font-size:13px;">Submitted at: ${escapeHtml(params.submittedAt.toISOString())}</p>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <thead>
+        <tr style="background:#f1f5f9;">
+          <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e2e8f0;">Question</th>
+          <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e2e8f0;">Answer</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  </div>
+</div>`;
+}
+
 function hashSubmitterIp(ip: string): string {
   const salt = env.RATE_LIMIT_SALT ?? env.JWT_ACCESS_SECRET;
   return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
@@ -334,6 +380,7 @@ export const formRouter = router({
         updatedAt: z.date(),
         notificationSettings: z.object({
           creatorNotificationsEnabled: z.boolean(),
+          respondentEmailCopyEnabled: z.boolean(),
           creatorNotificationMode: creatorNotificationModeSchema,
           creatorDigestIntervalHours: creatorDigestIntervalHoursSchema,
         }),
@@ -364,6 +411,7 @@ export const formRouter = router({
           themeKey: formsTable.themeKey,
           updatedAt: formsTable.updatedAt,
           creatorNotificationsEnabled: formPublicSettingsTable.creatorNotificationsEnabled,
+          respondentEmailCopyEnabled: formPublicSettingsTable.respondentEmailCopyEnabled,
           creatorNotificationMode: formPublicSettingsTable.creatorNotificationMode,
           creatorDigestIntervalHours: formPublicSettingsTable.creatorDigestIntervalHours,
         })
@@ -397,6 +445,7 @@ export const formRouter = router({
         themeKey: form[0].themeKey as z.infer<typeof formThemeKeySchema>,
         notificationSettings: {
           creatorNotificationsEnabled: Boolean(form[0].creatorNotificationsEnabled ?? false),
+          respondentEmailCopyEnabled: Boolean(form[0].respondentEmailCopyEnabled ?? true),
           creatorNotificationMode:
             (form[0].creatorNotificationMode as z.infer<typeof creatorNotificationModeSchema> | null) ?? "IMMEDIATE",
           creatorDigestIntervalHours:
@@ -432,6 +481,7 @@ export const formRouter = router({
 
       const shouldUpdateNotificationSettings =
         input.creatorNotificationsEnabled !== undefined ||
+        input.respondentEmailCopyEnabled !== undefined ||
         input.creatorNotificationMode !== undefined ||
         input.creatorDigestIntervalHours !== undefined;
 
@@ -441,6 +491,7 @@ export const formRouter = router({
           .values({
             formId: input.formId,
             creatorNotificationsEnabled: input.creatorNotificationsEnabled ?? false,
+            respondentEmailCopyEnabled: input.respondentEmailCopyEnabled ?? true,
             creatorNotificationMode: input.creatorNotificationMode ?? "IMMEDIATE",
             creatorDigestIntervalHours: input.creatorDigestIntervalHours ?? 1,
             updatedAt: new Date(),
@@ -450,6 +501,9 @@ export const formRouter = router({
             set: {
               ...(input.creatorNotificationsEnabled !== undefined
                 ? { creatorNotificationsEnabled: input.creatorNotificationsEnabled }
+                : {}),
+              ...(input.respondentEmailCopyEnabled !== undefined
+                ? { respondentEmailCopyEnabled: input.respondentEmailCopyEnabled }
                 : {}),
               ...(input.creatorNotificationMode !== undefined
                 ? { creatorNotificationMode: input.creatorNotificationMode }
@@ -682,6 +736,7 @@ export const formRouter = router({
         status: formStatusSchema,
         visibility: formVisibilitySchema,
         themeKey: formThemeKeySchema,
+        respondentEmailCopyEnabled: z.boolean(),
         fields: z.array(
           z.object({
             id: z.string().uuid(),
@@ -707,8 +762,10 @@ export const formRouter = router({
           status: formsTable.status,
           visibility: formsTable.visibility,
           themeKey: formsTable.themeKey,
+          respondentEmailCopyEnabled: formPublicSettingsTable.respondentEmailCopyEnabled,
         })
         .from(formsTable)
+        .leftJoin(formPublicSettingsTable, eq(formPublicSettingsTable.formId, formsTable.id))
         .where(eq(formsTable.slug, input.slug))
         .limit(1);
 
@@ -741,6 +798,7 @@ export const formRouter = router({
         status: form[0].status as z.infer<typeof formStatusSchema>,
         visibility: form[0].visibility as z.infer<typeof formVisibilitySchema>,
         themeKey: form[0].themeKey as z.infer<typeof formThemeKeySchema>,
+        respondentEmailCopyEnabled: Boolean(form[0].respondentEmailCopyEnabled ?? true),
         fields: fields.map(f => ({
           ...f,
           type: f.type,
@@ -1330,6 +1388,7 @@ export const formRouter = router({
       const fields = await db
         .select({
           id: formFieldsTable.id,
+          label: formFieldsTable.label,
           key: formFieldsTable.key,
           type: formFieldsTable.type,
           required: formFieldsTable.required,
@@ -1364,6 +1423,7 @@ export const formRouter = router({
         .returning({ id: formResponsesTable.id });
 
       const responseId = headerInserted[0]!.id;
+      const submittedAt = new Date();
 
       if (input.answers.length > 0) {
         await db.insert(formResponseItemsTable).values(
@@ -1390,6 +1450,7 @@ export const formRouter = router({
           ownerEmail: usersTable.email,
           ownerId: formsTable.ownerId,
           creatorNotificationsEnabled: formPublicSettingsTable.creatorNotificationsEnabled,
+          respondentEmailCopyEnabled: formPublicSettingsTable.respondentEmailCopyEnabled,
           creatorNotificationMode: formPublicSettingsTable.creatorNotificationMode,
           creatorDigestIntervalHours: formPublicSettingsTable.creatorDigestIntervalHours,
           lastDigestSentAt: formPublicSettingsTable.lastDigestSentAt,
@@ -1401,6 +1462,61 @@ export const formRouter = router({
         .limit(1);
 
       const notify = notificationContext[0];
+      const respondentEmailCopyEnabled = Boolean(notify?.respondentEmailCopyEnabled ?? true);
+      const sendRespondentCopy = Boolean(
+        respondentEmailCopyEnabled && input.sendRespondentCopy && input.respondentEmail,
+      );
+
+      if (sendRespondentCopy && input.respondentEmail && notify?.formTitle) {
+        const respondentAnswers = fields.map((field) => {
+          const answer = input.answers.find((a) => a.fieldId === field.id);
+          return {
+            label: field.label || field.key,
+            value: answer?.value ?? null,
+          };
+        });
+        const recipientName = input.respondentName?.trim() || "there";
+
+        try {
+          const sent = await resendClient.emails.send({
+            from: env.RESEND_FROM_EMAIL,
+            to: input.respondentEmail,
+            subject: `Your response copy for ${notify.formTitle}`,
+            html: buildRespondentReceiptHtml({
+              formTitle: notify.formTitle,
+              respondentName: recipientName,
+              submittedAt,
+              answers: respondentAnswers,
+            }),
+          });
+
+          await db.insert(emailLogsTable).values({
+            formId: input.formId,
+            responseId,
+            recipientEmail: input.respondentEmail,
+            emailType: "respondent_response_copy",
+            providerMessageId: sent.data?.id ?? null,
+            status: "SENT",
+            metadata: {
+              kind: "RESPONDENT_COPY",
+            },
+            sentAt: new Date(),
+          });
+        } catch (error) {
+          await db.insert(emailLogsTable).values({
+            formId: input.formId,
+            responseId,
+            recipientEmail: input.respondentEmail,
+            emailType: "respondent_response_copy",
+            status: "FAILED",
+            errorMessage: error instanceof Error ? error.message : "Unknown email error",
+            metadata: {
+              kind: "RESPONDENT_COPY",
+            },
+          });
+        }
+      }
+
       if (notify?.creatorNotificationsEnabled && notify.ownerEmail) {
         const responseLink = `${env.FRONTEND_URL}/dashboard/forms/${input.formId}/responses`;
         const recipientName = input.respondentName?.trim() || "Anonymous";
