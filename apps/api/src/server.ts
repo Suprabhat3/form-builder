@@ -1,10 +1,9 @@
-import express from "express";
+import express, { type RequestHandler } from "express";
 import { logger } from "@repo/logger";
 import cors from "cors";
 
 import * as trpcExpress from "@trpc/server/adapters/express";
 import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to-openapi";
-import { apiReference } from "@scalar/express-api-reference";
 
 import { serverRouter, createContext } from "@repo/trpc/server";
 import { authService } from "@repo/services/auth";
@@ -113,7 +112,20 @@ app.get("/openapi.json", (req, res) => {
 });
 
 logger.debug(`docs: ${env.BASE_URL}/docs`);
-app.use("/docs", apiReference({ url: "/openapi.json" }));
+// @scalar/express-api-reference is ESM-only; dynamic import works from the CJS bundle.
+let scalarDocsMiddleware: RequestHandler | null = null;
+app.use("/docs", async (req, res, next) => {
+  try {
+    if (!scalarDocsMiddleware) {
+      const { apiReference } = await import("@scalar/express-api-reference");
+      scalarDocsMiddleware = apiReference({ url: "/openapi.json" });
+    }
+    return scalarDocsMiddleware(req, res, next);
+  } catch (error) {
+    logger.error("Failed to load API docs middleware", { error });
+    return res.status(500).json({ message: "API docs unavailable" });
+  }
+});
 
 app.use(
   "/api",
