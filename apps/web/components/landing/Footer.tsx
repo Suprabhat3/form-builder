@@ -5,16 +5,16 @@ import Link from "next/link";
 export function Footer() {
   return (
     <footer className="bg-surface-container-lowest dark:bg-background border-t border-outline-variant/40 dark:border-outline/20 full-width transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-margin pt-xl pb-lg">
+      <div className="max-w-7xl mx-auto px-margin pt-ds-xl pb-ds-lg">
 
         {/* Main Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-lg mb-xl">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-ds-lg mb-ds-xl">
 
           {/* Brand Info & Newsletter */}
-          <div className="col-span-2 flex flex-col items-start gap-md">
+          <div className="col-span-2 flex flex-col items-start gap-ds-md">
             <Link
               href="/"
-              className="text-headline-sm font-bold text-on-surface dark:text-on-surface flex items-center gap-xs hover:opacity-85 transition-opacity"
+              className="text-headline-sm font-bold text-on-surface dark:text-on-surface flex items-center gap-ds-xs hover:opacity-85 transition-opacity"
             >
               <Image src="/logo.png" alt="Logo" width={28} height={28} className="rounded-full" />
               <span>ZenForm</span>
@@ -25,11 +25,11 @@ export function Footer() {
             </p>
 
             {/* Newsletter Subscription */}
-            <div className="w-full max-w-70 mt-xs">
+            <div className="w-full max-w-70 mt-ds-xs">
               <span className="text-[10px] font-bold text-on-surface uppercase tracking-wider block mb-2">
                 Subscribe to our newsletter
               </span>
-              <form onSubmit={(e) => e.preventDefault()} className="flex gap-xs">
+              <form onSubmit={(e) => e.preventDefault()} className="flex gap-ds-xs">
                 <input
                   type="email"
                   placeholder="name@domain.com"
@@ -46,11 +46,11 @@ export function Footer() {
           </div>
 
           {/* Column 1: Product */}
-          <div className="flex flex-col gap-sm">
+          <div className="flex flex-col gap-ds-sm">
             <span className="text-label-sm font-bold text-on-surface dark:text-on-surface uppercase tracking-wider">
               Product
             </span>
-            <div className="flex flex-col gap-xs">
+            <div className="flex flex-col gap-ds-xs">
               <Link className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">
                 Features
               </Link>
@@ -67,11 +67,11 @@ export function Footer() {
           </div>
 
           {/* Column 2: Resources */}
-          <div className="flex flex-col gap-sm">
+          <div className="flex flex-col gap-ds-sm">
             <span className="text-label-sm font-bold text-on-surface dark:text-on-surface uppercase tracking-wider">
               Resources
             </span>
-            <div className="flex flex-col gap-xs">
+            <div className="flex flex-col gap-ds-xs">
               <Link className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">
                 Documentation
               </Link>
@@ -88,11 +88,11 @@ export function Footer() {
           </div>
 
           {/* Column 3: Company */}
-          <div className="flex flex-col gap-sm">
+          <div className="flex flex-col gap-ds-sm">
             <span className="text-label-sm font-bold text-on-surface dark:text-on-surface uppercase tracking-wider">
               Company
             </span>
-            <div className="flex flex-col gap-xs">
+            <div className="flex flex-col gap-ds-xs">
               <Link className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">
                 About Us
               </Link>
@@ -109,11 +109,11 @@ export function Footer() {
           </div>
 
           {/* Column 4: Legal */}
-          <div className="flex flex-col gap-sm">
+          <div className="flex flex-col gap-ds-sm">
             <span className="text-label-sm font-bold text-on-surface dark:text-on-surface uppercase tracking-wider">
               Legal
             </span>
-            <div className="flex flex-col gap-xs">
+            <div className="flex flex-col gap-ds-xs">
               <Link className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">
                 Privacy Policy
               </Link>
@@ -132,13 +132,13 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-outline-variant/30 dark:border-outline/10 pt-lg flex flex-col sm:flex-row justify-between items-center gap-md">
+        <div className="border-t border-outline-variant/30 dark:border-outline/10 pt-ds-lg flex flex-col sm:flex-row justify-between items-center gap-ds-md">
           <span className="text-label-sm text-on-surface-variant">
             © 2026 ZenForm. All rights reserved.
           </span>
 
           {/* Social Links */}
-          <div className="flex items-center gap-md">
+          <div className="flex items-center gap-ds-md">
             {/* Twitter / X */}
             <a href="#" className="text-on-surface-variant hover:text-primary transition-colors" aria-label="Twitter">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">

@@ -290,7 +290,7 @@ function FormSettings({ form }: { form: any }) {
               <Textarea value={successMessage} onChange={(e) => setSuccessMessage(e.target.value)} placeholder="Shown after submission." />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-700">Password protection</Label>
+              <Label className="text-xs font-semibold text-slate-700">Password protection (optional)</Label>
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Set new password" />
               {form.notificationSettings?.hasPassword && (
                 <label className="text-xs text-slate-600 flex items-center gap-2">

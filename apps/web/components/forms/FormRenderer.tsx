@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -65,6 +65,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [turnstileWidgetId, setTurnstileWidgetId] = useState<string | null>(null);
+  const [turnstileError, setTurnstileError] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [unlocking, setUnlocking] = useState(false);
 
@@ -78,6 +79,22 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   const [sendRespondentCopy, setSendRespondentCopy] = useState(false);
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileEnabled = !isPreview && !!env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const humanVerified = !turnstileEnabled || !!captchaToken;
+
+  const markTurnstileReady = useCallback(() => {
+    if (typeof window !== "undefined" && window.turnstile) {
+      setTurnstileReady(true);
+    }
+  }, []);
+
+  const resetTurnstile = useCallback(() => {
+    if (window.turnstile && turnstileWidgetId) {
+      window.turnstile.reset(turnstileWidgetId);
+    }
+    setTurnstileWidgetId(null);
+    setCaptchaToken(null);
+    setTurnstileError(false);
+  }, [turnstileWidgetId]);
   const respondentCopyEnabled = form.respondentEmailCopyEnabled ?? true;
   const collectRespondentEmail = form.collectRespondentEmail ?? false;
   const showProgressBar = form.showProgressBar ?? true;
@@ -88,10 +105,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
       toast.success("Form submitted successfully!");
     },
     onError: (err) => {
-      if (turnstileEnabled && window.turnstile) {
-        window.turnstile.reset(turnstileWidgetId ?? undefined);
-        setCaptchaToken(null);
-      }
+      resetTurnstile();
       toast.error(err.message || "Failed to submit response");
     },
   });
@@ -301,17 +315,33 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
   };
 
   useEffect(() => {
-    if (!turnstileEnabled || !turnstileReady) return;
+    if (!turnstileEnabled) return;
+    markTurnstileReady();
+  }, [turnstileEnabled, markTurnstileReady]);
+
+  useEffect(() => {
+    if (!turnstileEnabled || !turnstileReady || captchaToken) return;
     if (!window.turnstile || !turnstileContainerRef.current || turnstileWidgetId) return;
 
     const widgetId = window.turnstile.render(turnstileContainerRef.current, {
       sitekey: env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
-      callback: (token: string) => setCaptchaToken(token),
-      "expired-callback": () => setCaptchaToken(null),
-      "error-callback": () => setCaptchaToken(null),
+      theme: "auto",
+      appearance: "always",
+      callback: (token: string) => {
+        setCaptchaToken(token);
+        setTurnstileError(false);
+      },
+      "expired-callback": () => {
+        resetTurnstile();
+        toast.error("Human verification expired. Please verify again.");
+      },
+      "error-callback": () => {
+        setTurnstileError(true);
+        setCaptchaToken(null);
+      },
     });
     setTurnstileWidgetId(widgetId);
-  }, [turnstileEnabled, turnstileReady, turnstileWidgetId]);
+  }, [turnstileEnabled, turnstileReady, turnstileWidgetId, captchaToken, resetTurnstile]);
 
   // Render Theme Decors
   const renderThemeDecorators = () => {
@@ -460,15 +490,49 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
     );
   }
 
-  return (
-    <div className={`theme-container theme-${form.themeKey} py-12 px-4 sm:px-6 relative`}>
-      {turnstileEnabled && (
+  if (!isPreview && turnstileEnabled && !humanVerified) {
+    return (
+      <div className={`theme-container theme-${form.themeKey} flex min-h-screen items-center justify-center overflow-visible px-4 py-12 relative`}>
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
-          onLoad={() => setTurnstileReady(true)}
+          onLoad={markTurnstileReady}
+          onReady={markTurnstileReady}
         />
-      )}
+        {renderThemeDecorators()}
+        <div className="max-w-md w-full relative z-10">
+          <div className="theme-card p-8 md:p-10 text-center space-y-5">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10">
+              <ShieldCheckIcon className="size-7 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="theme-title text-2xl font-extrabold tracking-tight">Verify you&apos;re human</h1>
+              <p className="theme-muted text-sm leading-relaxed">
+                Complete the security check below to open <strong>{form.title}</strong>.
+              </p>
+            </div>
+            <div className="flex justify-center pt-2">
+              <div ref={turnstileContainerRef} className="min-h-[65px]" />
+            </div>
+            {!turnstileReady && (
+              <p className="text-xs theme-muted flex items-center justify-center gap-2">
+                <Loader2Icon className="size-3.5 animate-spin" />
+                Loading security check...
+              </p>
+            )}
+            {turnstileError && (
+              <p className="text-xs font-medium text-destructive">
+                Verification failed to load. Please refresh the page and try again.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`theme-container theme-${form.themeKey} py-12 px-4 sm:px-6 relative`}>
       {renderThemeDecorators()}
       
       <div className="max-w-2xl mx-auto relative z-10">
@@ -729,13 +793,6 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
             );
           })}
 
-          {/* Submit Button */}
-          {turnstileEnabled && (
-            <div className="theme-card p-6 md:p-8">
-              <p className="text-xs theme-muted mb-3">Human verification</p>
-              <div ref={turnstileContainerRef} />
-            </div>
-          )}
           <div className="pt-4 flex justify-end">
             <Button
               type="submit"

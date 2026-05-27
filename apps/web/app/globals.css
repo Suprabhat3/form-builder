@@ -173,11 +173,14 @@
   --color-tertiary: #904900;
   --color-surface-bright: #fcf8ff;
 
-  --spacing-sm: 16px;
-  --spacing-xl: 64px;
-  --spacing-xs: 8px;
-  --spacing-md: 24px;
-  --spacing-lg: 40px;
+  /* Design-system spacing — use ds-* utilities (e.g. gap-ds-md, p-ds-lg).
+     Do NOT use --spacing-xs/sm/md/lg/xl here: Tailwind v4 maps max-w-*, w-*,
+     and h-* to --spacing-* first, which breaks dialogs and layout widths. */
+  --spacing-ds-xs: 8px;
+  --spacing-ds-sm: 16px;
+  --spacing-ds-md: 24px;
+  --spacing-ds-lg: 40px;
+  --spacing-ds-xl: 64px;
   --spacing-margin: 16px;
   --spacing-gutter: 24px;
   --spacing-base: 4px;

@@ -14,11 +14,12 @@ import {
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { PlusIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, ExternalLinkIcon, Share2Icon, BarChart3Icon, ClipboardListIcon } from "lucide-react";
+import { PlusIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, Share2Icon, BarChart3Icon, ClipboardListIcon } from "lucide-react";
+import { ShareDialog } from "~/components/share/ShareDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { toast } from "sonner";
 
@@ -262,91 +263,6 @@ function CreateFormDialog({
 
 
 
-function ShareDialog({
-  open,
-  onOpenChange,
-  title,
-  slug,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  slug: string;
-}) {
-  const shareUrl = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}/f/${slug}`;
-  }, [slug]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md border-2 border-slate-200 shadow-xl rounded-2xl">
-        <DialogHeader className="space-y-4">
-          <div className="mx-auto bg-green-100/50 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-2">
-            <Share2Icon className="w-8 h-8 text-green-600" />
-          </div>
-          <DialogTitle className="text-center text-2xl font-bold">Share your form</DialogTitle>
-          <DialogDescription className="text-center text-slate-500">
-            You're ready to collect responses! Distribute this link anywhere.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 pt-4 pb-2">
-          <div className="space-y-2">
-            <Label htmlFor="share-link" className="font-semibold text-xs uppercase tracking-wider text-slate-500">Public Link</Label>
-            <div className="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border">
-              <div className="bg-white px-3 py-2.5 rounded-lg border shadow-sm flex-1 truncate text-sm font-mono text-slate-700">
-                {shareUrl}
-              </div>
-              <Button
-                type="button"
-                variant="default"
-                className="gap-2 shrink-0 bg-slate-800 hover:bg-slate-900"
-                onClick={() => {
-                  navigator.clipboard.writeText(shareUrl);
-                  toast.success("Link copied to clipboard!");
-                }}
-              >
-                Copy Link
-              </Button>
-            </div>
-          </div>
-          {shareUrl && (
-            <div className="flex flex-col items-center gap-2">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`}
-                alt="QR code"
-                className="rounded-lg border"
-              />
-              <a
-                href={`https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(shareUrl)}`}
-                target="_blank"
-                className="text-xs text-slate-500 underline"
-                rel="noreferrer"
-              >
-                Download QR
-              </a>
-            </div>
-          )}
-        </div>
-        <DialogFooter className="border-t pt-4 mt-2 sm:justify-between items-center">
-          <Button
-            type="button"
-            variant="ghost"
-            className="text-slate-500 hover:text-primary gap-2"
-            onClick={() => window.open(`/f/${slug}`, "_blank")}
-          >
-            <ExternalLinkIcon className="h-4 w-4" />
-            Open live preview
-          </Button>
-          <Button type="button" className="px-8 font-semibold" onClick={() => onOpenChange(false)}>
-            Done
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function FormsList() {
   const { data: forms, isLoading } = trpc.form.listMine.useQuery();
   const router = useRouter();
@@ -409,6 +325,7 @@ function FormsList() {
   }
 
   return (
+    <>
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {forms.map((form) => (
         <Card key={form.id} className="group flex flex-col justify-between overflow-hidden border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 bg-white">
@@ -503,15 +420,17 @@ function FormsList() {
           </CardFooter>
         </Card>
       ))}
-
-      {shareTarget && (
-        <ShareDialog
-          open={shareOpen}
-          onOpenChange={setShareOpen}
-          title={shareTarget.title}
-          slug={shareTarget.slug}
-        />
-      )}
     </div>
+
+    {shareTarget && (
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        title={shareTarget.title}
+        slug={shareTarget.slug}
+        downloadName={shareTarget.slug}
+      />
+    )}
+    </>
   );
 }

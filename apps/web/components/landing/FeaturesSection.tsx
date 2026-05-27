@@ -123,11 +123,11 @@ export function FeaturesSection() {
 
       {/* Header */}
       <div className="text-center mb-[64px]">
-        <div className="inline-flex items-center gap-[8px] bg-surface-container border border-outline-variant/30 rounded-full px-4 py-1.5 mb-xs text-primary font-bold text-label-sm uppercase tracking-wider">
+        <div className="inline-flex items-center gap-[8px] bg-surface-container border border-outline-variant/30 rounded-full px-4 py-1.5 mb-ds-xs text-primary font-bold text-label-sm uppercase tracking-wider">
           <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
           Engineered for Operators
         </div>
-        <h2 className="text-[36px] sm:text-[48px] font-bold text-on-surface mb-md tracking-tight leading-[1.2]">
+        <h2 className="text-[36px] sm:text-[48px] font-bold text-on-surface mb-ds-md tracking-tight leading-[1.2]">
           Aesthetic by Default
         </h2>
         <p className="text-body-lg text-on-surface-variant max-w-[38rem] mx-auto leading-[1.6]">
@@ -139,17 +139,17 @@ export function FeaturesSection() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-gutter">
 
         {/* Card 1: Surgical Control (Live Playground!) */}
-        <div className="lg:col-span-8 bg-surface-container-lowest dark:bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-lg sm:p-xl soft-focus-shadow flex flex-col relative overflow-hidden group">
+        <div className="lg:col-span-8 bg-surface-container-lowest dark:bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-ds-lg sm:p-ds-xl soft-focus-shadow flex flex-col relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-gradient-to-br from-primary/10 to-transparent rounded-bl-full -z-10 transition-transform duration-500 group-hover:scale-105"></div>
 
-          <div className="flex flex-col sm:flex-row gap-lg items-start mb-xl justify-between">
+          <div className="flex flex-col sm:flex-row gap-ds-lg items-start mb-ds-xl justify-between">
             <div className="flex-1">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-sm">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-ds-sm">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
                 </svg>
               </div>
-              <h3 className="text-headline-md font-bold text-on-surface mb-xs">
+              <h3 className="text-headline-md font-bold text-on-surface mb-ds-xs">
                 Surgical Precision
               </h3>
               <p className="text-body-md text-on-surface-variant max-w-[28rem] leading-[1.5]">
@@ -158,7 +158,7 @@ export function FeaturesSection() {
             </div>
 
             {/* Live Controller Panel */}
-            <div className="w-full sm:w-auto bg-surface-container/50 border border-outline-variant/30 rounded-2xl p-sm flex flex-col gap-sm shrink-0 min-w-[200px]">
+            <div className="w-full sm:w-auto bg-surface-container/50 border border-outline-variant/30 rounded-2xl p-ds-sm flex flex-col gap-ds-sm shrink-0 min-w-[200px]">
               <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
                 Live Token Editor
               </span>
@@ -166,7 +166,7 @@ export function FeaturesSection() {
               {/* Radius Control */}
               <div className="flex flex-col gap-1">
                 <label className="text-[11px] font-semibold text-on-surface-variant">Radius</label>
-                <div className="grid grid-cols-3 gap-xs bg-surface-container-low p-[3px] rounded-lg border border-outline-variant/20">
+                <div className="grid grid-cols-3 gap-ds-xs bg-surface-container-low p-[3px] rounded-lg border border-outline-variant/20">
                   {(["none", "md", "2xl"] as const).map((r) => (
                     <button
                       key={r}
@@ -186,7 +186,7 @@ export function FeaturesSection() {
               {/* Padding Control */}
               <div className="flex flex-col gap-1">
                 <label className="text-[11px] font-semibold text-on-surface-variant">Spacing</label>
-                <div className="grid grid-cols-2 gap-xs bg-surface-container-low p-[3px] rounded-lg border border-outline-variant/20">
+                <div className="grid grid-cols-2 gap-ds-xs bg-surface-container-low p-[3px] rounded-lg border border-outline-variant/20">
                   {(["compact", "cozy"] as const).map((p) => (
                     <button
                       key={p}
@@ -204,7 +204,7 @@ export function FeaturesSection() {
               </div>
 
               {/* Theme Control */}
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-sm mt-xs">
+              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-ds-sm mt-ds-xs">
                 <span className="text-[11px] font-semibold text-on-surface-variant">Dark Mode</span>
                 <button
                   type="button"
@@ -224,7 +224,7 @@ export function FeaturesSection() {
           </div>
 
           {/* Interactive Form Preview Card */}
-          <div className="mt-auto border border-dashed border-outline-variant/50 rounded-2xl p-sm bg-surface-container/20">
+          <div className="mt-auto border border-dashed border-outline-variant/50 rounded-2xl p-ds-sm bg-surface-container/20">
             <div
               className={`max-w-[420px] mx-auto border transition-all duration-300 shadow-lg ${
                 isDark
@@ -237,20 +237,20 @@ export function FeaturesSection() {
                   ? "rounded-xl"
                   : "rounded-[24px]"
               } ${
-                paddingSize === "compact" ? "p-md" : "p-lg"
+                paddingSize === "compact" ? "p-ds-md" : "p-ds-lg"
               }`}
             >
-              <div className="mb-sm">
+              <div className="mb-ds-sm">
                 <h4 className="text-[16px] font-bold">Feedback Survey</h4>
                 <p className={`text-[11px] ${isDark ? "text-gray-400" : "text-on-surface-variant"}`}>
                   We value your honest opinion.
                 </p>
               </div>
 
-              <div className="flex flex-col gap-sm">
+              <div className="flex flex-col gap-ds-sm">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-semibold">User Experience Rating</label>
-                  <div className="flex gap-xs">
+                  <div className="flex gap-ds-xs">
                     {[1, 2, 3, 4, 5].map((num) => (
                       <button
                         key={num}
@@ -281,7 +281,7 @@ export function FeaturesSection() {
 
                 <button
                   type="button"
-                  className={`h-9 w-full bg-primary text-on-primary text-[11px] font-bold shadow-sm transition-all hover:opacity-95 mt-xs ${
+                  className={`h-9 w-full bg-primary text-on-primary text-[11px] font-bold shadow-sm transition-all hover:opacity-95 mt-ds-xs ${
                     borderRadius === "none"
                       ? "rounded-none"
                       : borderRadius === "md"
@@ -297,27 +297,27 @@ export function FeaturesSection() {
         </div>
 
         {/* Card 2: Logic & Flow (Visual Routing simulation) */}
-        <div className="lg:col-span-4 bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-lg sm:p-xl soft-focus-shadow flex flex-col justify-between overflow-hidden relative group hover-lift">
+        <div className="lg:col-span-4 bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-ds-lg sm:p-ds-xl soft-focus-shadow flex flex-col justify-between overflow-hidden relative group hover-lift">
           <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-gradient-to-bl from-secondary-fixed/5 to-transparent rounded-bl-full -z-10" />
 
           <div>
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-md">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-ds-md">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.656 48.656 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-9 3-3-3m3 3a9 9 0 1 1-9-9" />
               </svg>
             </div>
-            <h3 className="text-label-md font-bold text-on-surface mb-xs uppercase tracking-wider">
+            <h3 className="text-label-md font-bold text-on-surface mb-ds-xs uppercase tracking-wider">
               Logic &amp; Flow
             </h3>
-            <p className="text-body-md text-on-surface-variant leading-[1.5] mb-md">
+            <p className="text-body-md text-on-surface-variant leading-[1.5] mb-ds-md">
               Create advanced branching scenarios effortlessly. Set conditional statements to direct submissions down distinct paths instantly.
             </p>
           </div>
 
           {/* Visual Node Connection Diagram */}
-          <div className="bg-surface-container/40 rounded-2xl border border-outline-variant/30 p-sm flex flex-col gap-sm relative">
+          <div className="bg-surface-container/40 rounded-2xl border border-outline-variant/30 p-ds-sm flex flex-col gap-ds-sm relative">
             {/* Source Node */}
-            <div className="bg-white border border-outline-variant/30 rounded-lg p-2 flex items-center gap-xs shadow-sm w-fit mx-auto relative z-10 transition-transform duration-300 group-hover:scale-[1.03]">
+            <div className="bg-white border border-outline-variant/30 rounded-lg p-2 flex items-center gap-ds-xs shadow-sm w-fit mx-auto relative z-10 transition-transform duration-300 group-hover:scale-[1.03]">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />
               <span className="text-[10px] font-semibold">Email matches "@vip.com"</span>
             </div>
@@ -331,7 +331,7 @@ export function FeaturesSection() {
             </div>
 
             {/* Destination Nodes */}
-            <div className="grid grid-cols-2 gap-sm">
+            <div className="grid grid-cols-2 gap-ds-sm">
               <div className="bg-primary/5 border border-primary/40 rounded-lg p-2 text-center shadow-sm relative z-10 transition-transform duration-300 group-hover:-translate-y-0.5">
                 <span className="text-[9px] font-bold text-primary block">True</span>
                 <span className="text-[9px] text-on-surface-variant font-medium">VIP Premium Form</span>
@@ -345,7 +345,7 @@ export function FeaturesSection() {
         </div>
 
         {/* ── NEW Card: Theme Showcase ── */}
-        <div className="lg:col-span-12 bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-lg sm:p-xl soft-focus-shadow flex flex-col relative overflow-hidden group">
+        <div className="lg:col-span-12 bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-ds-lg sm:p-ds-xl soft-focus-shadow flex flex-col relative overflow-hidden group">
           {/* Ambient glow that shifts with selected theme */}
           <div
             className="absolute inset-0 opacity-20 pointer-events-none -z-10 transition-all duration-700 blur-[120px]"
@@ -355,12 +355,12 @@ export function FeaturesSection() {
           {/* Header row */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-5">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-md">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-ds-md">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008Z" />
                 </svg>
               </div>
-              <h3 className="text-headline-md font-bold text-on-surface mb-xs">
+              <h3 className="text-headline-md font-bold text-on-surface mb-ds-xs">
                 8 Stunning Themes, Ready to Ship
               </h3>
               <p className="text-body-md text-on-surface-variant max-w-[44rem] leading-[1.5]">
@@ -465,26 +465,26 @@ export function FeaturesSection() {
         </div>
 
         {/* Card 3: Data Sync (Webhooks / Integrations) */}
-        <div className="lg:col-span-5 bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-lg sm:p-xl soft-focus-shadow flex flex-col justify-between relative overflow-hidden group hover-lift">
+        <div className="lg:col-span-5 bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-ds-lg sm:p-ds-xl soft-focus-shadow flex flex-col justify-between relative overflow-hidden group hover-lift">
           <div className="absolute inset-0 grid-bg-pattern opacity-30 pointer-events-none -z-10" />
 
           <div>
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-md">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-ds-md">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
               </svg>
             </div>
-            <h3 className="text-label-md font-bold text-on-surface mb-xs uppercase tracking-wider">
+            <h3 className="text-label-md font-bold text-on-surface mb-ds-xs uppercase tracking-wider">
               Data Routing &amp; Sync
             </h3>
-            <p className="text-body-md text-on-surface-variant leading-[1.5] mb-md">
+            <p className="text-body-md text-on-surface-variant leading-[1.5] mb-ds-md">
               Broadcast submissions immediately to Slack, Notion, Discord, and customizable webhook endpoints. Keep operations synchronized.
             </p>
           </div>
 
           {/* Webhook JSON Editor Simulation */}
-          <div className="bg-surface-container/60 border border-outline-variant/40 rounded-2xl p-md font-mono text-[10px] text-on-surface-variant relative overflow-hidden transition-all duration-300 group-hover:shadow-md">
-            <div className="flex items-center justify-between border-b border-outline-variant/20 pb-xs mb-xs">
+          <div className="bg-surface-container/60 border border-outline-variant/40 rounded-2xl p-ds-md font-mono text-[10px] text-on-surface-variant relative overflow-hidden transition-all duration-300 group-hover:shadow-md">
+            <div className="flex items-center justify-between border-b border-outline-variant/20 pb-ds-xs mb-ds-xs">
               <div className="flex gap-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
                 <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
@@ -497,7 +497,7 @@ export function FeaturesSection() {
             </pre>
 
             {/* Floater integration badges */}
-            <div className="absolute right-3 bottom-3 flex flex-wrap gap-xs max-w-[120px] justify-end">
+            <div className="absolute right-3 bottom-3 flex flex-wrap gap-ds-xs max-w-[120px] justify-end">
               <span className="px-2 py-0.5 rounded-md bg-white border border-outline-variant/30 text-[9px] font-bold shadow-sm transition-transform duration-300 group-hover:scale-105">Slack</span>
               <span className="px-2 py-0.5 rounded-md bg-white border border-outline-variant/30 text-[9px] font-bold shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:translate-x-1">Notion</span>
               <span className="px-2 py-0.5 rounded-md bg-white border border-outline-variant/30 text-[9px] font-bold shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-1">Sheets</span>
@@ -506,16 +506,16 @@ export function FeaturesSection() {
         </div>
 
         {/* Card 4: Glassmorphic Layering */}
-        <div className="lg:col-span-7 bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-lg sm:p-xl soft-focus-shadow flex flex-col md:flex-row gap-lg items-center relative overflow-hidden group hover-lift">
+        <div className="lg:col-span-7 bg-surface-container-lowest border border-outline-variant/30 rounded-[32px] p-ds-lg sm:p-ds-xl soft-focus-shadow flex flex-col md:flex-row gap-ds-lg items-center relative overflow-hidden group hover-lift">
           <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-primary/5 rounded-full blur-[80px] -z-10" />
 
           <div className="flex-1 text-left">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-md">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 mb-ds-md">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25" />
               </svg>
             </div>
-            <h3 className="text-headline-md font-bold text-on-surface mb-xs">
+            <h3 className="text-headline-md font-bold text-on-surface mb-ds-xs">
               3D Glassmorphic Layering
             </h3>
             <p className="text-body-md text-on-surface-variant leading-[1.6]">
@@ -539,7 +539,7 @@ export function FeaturesSection() {
             </div>
 
             {/* Layer 3 (Top Panel) */}
-            <div className="w-[140px] h-[100px] bg-primary backdrop-blur-xl rounded-xl border border-white/10 absolute translate-x-[15px] translate-y-[-20px] rotate-[15deg] shadow-2xl transition-transform duration-500 group-hover:translate-x-[22px] group-hover:translate-y-[-28px] flex flex-col justify-between p-xs text-white">
+            <div className="w-[140px] h-[100px] bg-primary backdrop-blur-xl rounded-xl border border-white/10 absolute translate-x-[15px] translate-y-[-20px] rotate-[15deg] shadow-2xl transition-transform duration-500 group-hover:translate-x-[22px] group-hover:translate-y-[-28px] flex flex-col justify-between p-ds-xs text-white">
               <div className="h-2 w-8 bg-white/40 rounded-full" />
               <div className="h-6 w-6 bg-white/20 rounded-full flex items-center justify-center mx-auto">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">

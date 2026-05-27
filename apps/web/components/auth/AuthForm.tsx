@@ -98,7 +98,7 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
 
       <nav className="relative z-10 flex justify-between items-center w-full px-margin py-6 max-w-7xl mx-auto">
         <Link
-          className="text-headline-md font-headline-md font-bold tracking-tight text-on-surface flex items-center gap-xs hover:opacity-80 transition-opacity"
+          className="text-headline-md font-headline-md font-bold tracking-tight text-on-surface flex items-center gap-ds-xs hover:opacity-80 transition-opacity"
           href="/"
         >
           <span
