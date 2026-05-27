@@ -1,8 +1,14 @@
 import { env } from "~/env.js";
 
+function ensureTrpcPath(url: string): string {
+  const trimmed = url.replace(/\/+$/, "");
+  return trimmed.endsWith("/trpc") ? trimmed : `${trimmed}/trpc`;
+}
+
 export function getApiUrl(): string {
-  if (env.NEXT_PUBLIC_API_URL) {
-    return env.NEXT_PUBLIC_API_URL;
+  const configured = env.NEXT_PUBLIC_API_URL;
+  if (configured) {
+    return ensureTrpcPath(configured);
   }
 
   if (typeof window !== "undefined") {
@@ -13,5 +19,10 @@ export function getApiUrl(): string {
 }
 
 export function getApiBaseUrl(): string {
-  return getApiUrl().replace(/\/trpc\/?$/, "");
+  const apiUrl = getApiUrl();
+  if (apiUrl.startsWith("/")) {
+    return "";
+  }
+
+  return apiUrl.replace(/\/trpc\/?$/, "");
 }
