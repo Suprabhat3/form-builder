@@ -5,10 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { setAuthSession, setPendingSignup } from "~/lib/auth-session";
-import { env } from "~/env.js";
+import { getApiBaseUrl } from "~/lib/api-url";
 import { trpc } from "~/trpc/client";
-
-const authServerBaseUrl = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/trpc").replace(/\/trpc\/?$/, "");
 
 export function AuthForm({ type }: { type: "login" | "signup" }) {
   return (
@@ -147,7 +145,7 @@ function AuthFormContent({ type }: { type: "login" | "signup" }) {
   };
 
   const handleGoogleSignIn = async () => {
-    window.location.href = `${authServerBaseUrl}/auth/google/start?next=${encodeURIComponent(nextPath)}`;
+    window.location.href = `${getApiBaseUrl()}/auth/google/start?next=${encodeURIComponent(nextPath)}`;
   };
 
   return (

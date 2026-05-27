@@ -1,5 +1,5 @@
 import { httpLink, httpBatchStreamLink } from "@repo/trpc/client";
-import { env } from "~/env.js";
+import { getApiBaseUrl, getApiUrl } from "~/lib/api-url";
 import { clearAuthSession, getAccessToken, refreshAuthSession } from "~/lib/auth-session";
 
 interface CreateTRPCHttpBatchClientClientOpts {
@@ -8,10 +8,8 @@ interface CreateTRPCHttpBatchClientClientOpts {
 
 export const createTRPCHttpBatchClientClient = (opts?: CreateTRPCHttpBatchClientClientOpts) => {
   const c = opts?.enableStreaming ? httpBatchStreamLink : httpLink;
-  const apiUrl =
-    env.NEXT_PUBLIC_API_URL ??
-    (typeof window === "undefined" ? "http://localhost:8000/trpc" : `${window.location.protocol}//localhost:8000/trpc`);
-  const apiBaseUrl = apiUrl.replace(/\/trpc\/?$/, "");
+  const apiUrl = getApiUrl();
+  const apiBaseUrl = getApiBaseUrl();
 
   let refreshPromise: Promise<string | null> | null = null;
 

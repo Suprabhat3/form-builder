@@ -60,8 +60,8 @@ Creators can build dynamic forms, configure fields/validation, publish shareable
 
 Scalar docs and OpenAPI spec are exposed by backend:
 
-- Scalar UI: `http://localhost:8000/docs`
-- OpenAPI JSON: `http://localhost:8000/openapi.json`
+- Scalar UI: `https://repoapi-production-b2c5.up.railway.app/docs`
+- OpenAPI JSON: `https://repoapi-production-b2c5.up.railway.app/openapi.json`
 
 All auth/health/form endpoints are documented with OpenAPI metadata in tRPC routers.
 

@@ -8,6 +8,7 @@ import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { toast } from "sonner";
 import { trpc } from "~/trpc/client";
+import { getApiBaseUrl } from "~/lib/api-url";
 import { env } from "~/env";
 import { CheckCircle2Icon, Loader2Icon, SparklesIcon, TerminalIcon, TrophyIcon, ShieldCheckIcon, CalendarIcon, HeartIcon, StarIcon } from "lucide-react";
 
@@ -466,7 +467,7 @@ export function FormRenderer({ form, isPreview = false }: FormRendererProps) {
               onClick={async () => {
                 try {
                   setUnlocking(true);
-                  const apiBase = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/trpc").replace(/\/trpc\/?$/, "");
+                  const apiBase = getApiBaseUrl();
                   const res = await fetch(`${apiBase}/forms/unlock`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

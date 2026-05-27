@@ -7,9 +7,11 @@ import { env } from "./env";
 async function init() {
   try {
     const server = http.createServer(expressApplication);
-    const PORT: number = env.PORT ? +env.PORT : 8000;
-    server.listen(PORT, () => {
-      logger.info(`http server is running on PORT ${PORT}`);
+    // Railway injects PORT; must listen on 0.0.0.0 (not localhost) for the proxy to reach us.
+    const port = Number(process.env.PORT ?? env.PORT ?? 8000);
+    const host = "0.0.0.0";
+    server.listen(port, host, () => {
+      logger.info(`http server is running on ${host}:${port}`);
     });
   } catch (err) {
     logger.error(`Error creating http server`, { err });

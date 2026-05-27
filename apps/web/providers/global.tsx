@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { trpc } from "~/trpc/client";
 import { createTRPCHttpBatchClientClient } from "~/trpc/create-client";
-import { env } from "~/env.js";
+import { getApiBaseUrl } from "~/lib/api-url";
 import {
   clearAuthSession,
   getAccessTokenExpiryMs,
@@ -37,12 +37,7 @@ export const GlobalProviders: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const apiUrl =
-      env.NEXT_PUBLIC_API_URL ??
-      (typeof window === "undefined"
-        ? "http://localhost:8000/trpc"
-        : `${window.location.protocol}//localhost:8000/trpc`);
-    const apiBaseUrl = apiUrl.replace(/\/trpc\/?$/, "");
+    const apiBaseUrl = getApiBaseUrl();
 
     const clearRefreshTimer = () => {
       if (refreshTimerRef.current) {
