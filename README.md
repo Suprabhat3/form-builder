@@ -193,15 +193,21 @@ Default ports:
 
 ## Current Gaps / Next Work
 
-- Seed script with demo forms/responses/analytics
-- README demo credentials section (to be filled after seed)
 - Deployment URL + production credentials section
 - Optional hardening: stronger rate limits/spam defenses, E2E tests
 
-## Demo Credentials (To Fill)
+## Demo Credentials
 
-- Creator Email: `TBD`
-- Creator Password: `TBD`
+Run `pnpm db:seed` after migrations to load demo users, forms, responses, and analytics.
+
+Shared password for all seed users: `Demo123!`
+
+| Role | Email | Notes |
+| --- | --- | --- |
+| Admin | `admin@zenform.com` | Full admin panel access |
+| Creator | `suprabhat@zenform.com` | 3 forms (2 published, 1 draft) with sample responses |
+| Creator | `piyush@zenform.com` | 2 forms (1 published, 1 draft) with sample responses |
+
 - Deployed URL: `TBD`
 - Scalar Docs URL (deployed): `TBD`
 
