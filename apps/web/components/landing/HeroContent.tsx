@@ -2,14 +2,7 @@ import Link from "next/link";
 
 export function HeroContent() {
   return (
-    <div className="flex flex-col items-start text-left z-20">
-      <div className="inline-flex items-center gap-[8px] bg-surface-container-lowest border border-outline-variant/50 rounded-full px-[14px] py-[6px] mb-[32px] soft-focus-shadow">
-        <span className="w-2.5 h-2.5 rounded-full bg-primary/70"></span>
-        <span className="text-[12px] font-bold text-on-surface-variant uppercase tracking-widest">
-          ZENFORM 2.0 IS LIVE
-        </span>
-      </div>
-
+    <div className="flex flex-col items-start text-left z-20 pt-12">
       <h1 className="text-[40px] sm:text-[56px] lg:text-[64px] xl:text-[72px] font-bold text-on-surface mb-[24px] leading-[1.1] tracking-tight">
         Build Forms That <br />
         <span className="text-primary">Look Like Art.</span>
