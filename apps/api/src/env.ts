@@ -2,7 +2,11 @@ import { z } from "zod";
 
 const envSchema = z.object({
   PORT: z.string().optional(),
-  NODE_ENV: z.enum(["development", "prod"]).default("development"),
+  // Railway/Vercel set NODE_ENV=production; normalize to "prod" for app logic.
+  NODE_ENV: z.preprocess(
+    (value) => (value === "production" ? "prod" : value),
+    z.enum(["development", "prod"]).default("development"),
+  ),
   BASE_URL: z.string().default("http://localhost:8000"),
   FRONTEND_URL: z.string().default("http://localhost:3000"),
 });
