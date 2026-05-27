@@ -19,6 +19,10 @@
     {
       "source": "/forms/unlock",
       "destination": "https://repoapi-production-b2c5.up.railway.app/forms/unlock"
+    },
+    {
+      "source": "/webhooks/razorpay",
+      "destination": "https://repoapi-production-b2c5.up.railway.app/webhooks/razorpay"
     }
   ],
   "headers": [

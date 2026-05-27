@@ -16,7 +16,7 @@ const NAV_LINKS = [
   { label: "Explore", href: "/explore" },
   { label: "Features", href: "#features" },
   { label: "Templates", href: "/templates" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Pricing", href: "/pricing" },
 ];
 
 export function TopNavBar() {

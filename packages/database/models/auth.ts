@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import { boolean, integer, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { subscriptionPlanEnum } from "./billing";
 
 export const userRoleEnum = pgEnum("user_role", ["USER", "ADMIN"]);
 
@@ -11,6 +12,8 @@ export const usersTable = pgTable("users", {
   image: text("image"),
   timezone: varchar("timezone", { length: 64 }).default("UTC"),
   role: userRoleEnum("role").notNull().default("USER"),
+  plan: subscriptionPlanEnum("plan").notNull().default("FREE"),
+  planExpiresAt: timestamp("plan_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

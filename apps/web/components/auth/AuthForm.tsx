@@ -89,38 +89,14 @@ function AuthFormContent({ type }: { type: "login" | "signup" }) {
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    const auth = url.searchParams.get("auth");
     const error = url.searchParams.get("error");
 
     if (error === "google_auth_failed") {
       toast.error("Google authentication failed");
       url.searchParams.delete("error");
       window.history.replaceState({}, "", url.toString());
-      return;
     }
-
-    if (!auth) return;
-    try {
-      const normalized = auth.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-      const decoded = JSON.parse(
-        new TextDecoder().decode(Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))),
-      ) as {
-        accessToken: string;
-        refreshToken: string;
-        user: { id: string; email: string; name: string; image: string | null; emailVerified: boolean };
-      };
-
-      setAuthSession(decoded);
-      toast.success("Signed in with Google");
-      url.searchParams.delete("auth");
-      window.history.replaceState({}, "", url.toString());
-      router.push(nextPath);
-      router.refresh();
-    } catch {
-      toast.error("Invalid Google auth response");
-    }
-  }, [nextPath, router]);
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

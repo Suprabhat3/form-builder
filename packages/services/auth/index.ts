@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
 import { googleOAuth2Client } from "../clients/google-oauth";
+import { billingService, userAuthSelectFields } from "../billing";
 import { env } from "../env";
 import { sendEmailVerificationCode } from "./email-verification";
 import type { AuthTokensOutput, AuthUser, SignInWithEmailInput, SignUpWithEmailInput } from "./model";
@@ -198,19 +199,12 @@ async function consumeEmailVerificationToken(email: string, otp: string): Promis
 
 async function findUserByEmail(email: string): Promise<AuthUser | null> {
   const user = await db
-    .select({
-      id: usersTable.id,
-      email: usersTable.email,
-      name: usersTable.name,
-      image: usersTable.image,
-      emailVerified: usersTable.emailVerified,
-      role: usersTable.role,
-    })
+    .select(userAuthSelectFields)
     .from(usersTable)
     .where(eq(usersTable.email, email.toLowerCase()))
     .limit(1);
 
-  return user[0] ?? null;
+  return user[0] ? billingService.enrichAuthUser(user[0]) : null;
 }
 
 export class AuthService {
@@ -243,16 +237,9 @@ export class AuthService {
         email: normalizedEmail,
         emailVerified: true,
       })
-      .returning({
-        id: usersTable.id,
-        email: usersTable.email,
-        name: usersTable.name,
-        image: usersTable.image,
-        emailVerified: usersTable.emailVerified,
-        role: usersTable.role,
-      });
+      .returning(userAuthSelectFields);
 
-    const user = insertedUsers[0]!;
+    const user = billingService.enrichAuthUser(insertedUsers[0]!);
 
     await db.insert(accountsTable).values({
       userId: user.id,
@@ -314,15 +301,8 @@ export class AuthService {
           image: payload.picture ?? null,
           emailVerified: payload.email_verified ?? true,
         })
-        .returning({
-          id: usersTable.id,
-          email: usersTable.email,
-          name: usersTable.name,
-          image: usersTable.image,
-          emailVerified: usersTable.emailVerified,
-          role: usersTable.role,
-        });
-      user = inserted[0]!;
+        .returning(userAuthSelectFields);
+      user = billingService.enrichAuthUser(inserted[0]!);
     }
 
     const account = await db
@@ -346,18 +326,11 @@ export class AuthService {
     try {
       const payload = verifyAccessToken(token);
       const user = await db
-        .select({
-          id: usersTable.id,
-          email: usersTable.email,
-          name: usersTable.name,
-          image: usersTable.image,
-          emailVerified: usersTable.emailVerified,
-          role: usersTable.role,
-        })
+        .select(userAuthSelectFields)
         .from(usersTable)
         .where(eq(usersTable.id, payload.sub))
         .limit(1);
-      return user[0] ?? null;
+      return user[0] ? billingService.enrichAuthUser(user[0]) : null;
     } catch {
       return null;
     }
@@ -381,14 +354,7 @@ export class AuthService {
     }
 
     const user = await db
-      .select({
-        id: usersTable.id,
-        email: usersTable.email,
-        name: usersTable.name,
-        image: usersTable.image,
-        emailVerified: usersTable.emailVerified,
-        role: usersTable.role,
-      })
+      .select(userAuthSelectFields)
       .from(usersTable)
       .where(eq(usersTable.id, payload.sub))
       .limit(1);
@@ -397,7 +363,7 @@ export class AuthService {
     if (!foundUser) throw new Error("User not found");
 
     await revokeRefreshSession(refreshToken);
-    return issueAuthTokensForUser(foundUser);
+    return issueAuthTokensForUser(billingService.enrichAuthUser(foundUser));
   }
 
   public async signOut(refreshToken: string): Promise<void> {

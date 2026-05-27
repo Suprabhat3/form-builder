@@ -7,6 +7,7 @@ import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to
 
 import { serverRouter, createContext } from "@repo/trpc/server";
 import { authService } from "@repo/services/auth";
+import { billingService } from "@repo/services/billing";
 import { googleOAuth2Client } from "@repo/services/clients/google-oauth";
 import { unlockProtectedFormBySlug } from "@repo/services/forms/access";
 
@@ -25,6 +26,21 @@ app.use(
     credentials: true,
   }),
 );
+
+app.post("/webhooks/razorpay", express.raw({ type: "application/json" }), async (req, res) => {
+  try {
+    const signature = req.headers["x-razorpay-signature"];
+    const rawBody = typeof req.body === "string" ? req.body : req.body.toString("utf8");
+    const result = await billingService.handleWebhook(
+      rawBody,
+      typeof signature === "string" ? signature : undefined,
+    );
+    return res.json(result);
+  } catch (error) {
+    logger.error("Razorpay webhook failed", { error });
+    return res.status(400).json({ handled: false });
+  }
+});
 
 app.use(express.json());
 

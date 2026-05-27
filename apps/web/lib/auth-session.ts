@@ -11,6 +11,9 @@ export type AuthUser = {
   image: string | null;
   emailVerified: boolean;
   role?: "USER" | "ADMIN";
+  plan?: "FREE" | "STARTER" | "PRO" | "BUSINESS";
+  planExpiresAt?: string | null;
+  maxForms?: number;
 };
 
 export type PendingSignup = {
@@ -25,9 +28,13 @@ export type AuthSessionPayload = {
   user: AuthUser;
 };
 
-export function getAccessToken(): string | null {
+function readStoredAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-  const token = window.localStorage.getItem(ACCESS_TOKEN_KEY);
+  return window.localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+export function getAccessToken(): string | null {
+  const token = readStoredAccessToken();
   if (!token) return null;
 
   const expiryMs = getJwtExpiryMs(token);
@@ -36,6 +43,31 @@ export function getAccessToken(): string | null {
   }
 
   return token;
+}
+
+export function getStoredAccessTokenExpiryMs(): number | null {
+  const token = readStoredAccessToken();
+  if (!token) return null;
+  return getJwtExpiryMs(token);
+}
+
+export function isAccessTokenUsable(): boolean {
+  const token = readStoredAccessToken();
+  if (!token) return false;
+
+  const expiryMs = getJwtExpiryMs(token);
+  if (!expiryMs) return true;
+  return expiryMs > Date.now();
+}
+
+export function shouldRefreshAccessToken(thresholdMs = 120_000): boolean {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+  if (!isAccessTokenUsable()) return true;
+
+  const expiryMs = getStoredAccessTokenExpiryMs();
+  if (!expiryMs) return false;
+  return expiryMs - Date.now() < thresholdMs;
 }
 
 export function getRefreshToken(): string | null {
@@ -67,6 +99,44 @@ export function setAuthSession(payload: {
   window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
 }
 
+function decodeAuthCallbackPayload(authParam: string): AuthSessionPayload {
+  const normalized = authParam.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  const decoded = JSON.parse(
+    new TextDecoder().decode(Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))),
+  ) as AuthSessionPayload;
+
+  if (!decoded?.accessToken || !decoded?.refreshToken || !decoded?.user?.id) {
+    throw new Error("Incomplete auth payload");
+  }
+
+  return decoded;
+}
+
+export function consumeAuthCallbackFromUrl(): { session: AuthSessionPayload; nextPath: string | null } | null {
+  if (typeof window === "undefined") return null;
+
+  const url = new URL(window.location.href);
+  const auth = url.searchParams.get("auth");
+  if (!auth) return null;
+
+  try {
+    const session = decodeAuthCallbackPayload(auth);
+    setAuthSession(session);
+
+    const nextParam = url.searchParams.get("next");
+    const nextPath = nextParam && nextParam.startsWith("/") ? nextParam : null;
+
+    url.searchParams.delete("auth");
+    if (nextParam) url.searchParams.delete("next");
+    window.history.replaceState({}, "", url.toString());
+
+    return { session, nextPath };
+  } catch {
+    return null;
+  }
+}
+
 function getJwtExpiryMs(token: string): number | null {
   try {
     const parts = token.split(".");
@@ -85,36 +155,47 @@ function getJwtExpiryMs(token: string): number | null {
 }
 
 export function getAccessTokenExpiryMs(): number | null {
-  const token = getAccessToken();
-  if (!token) return null;
-  return getJwtExpiryMs(token);
+  return getStoredAccessTokenExpiryMs();
 }
+
+let refreshSessionPromise: Promise<AuthSessionPayload | null> | null = null;
 
 export async function refreshAuthSession(apiBaseUrl: string): Promise<AuthSessionPayload | null> {
   if (typeof window === "undefined") return null;
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
 
-  try {
-    const response = await fetch(`${apiBaseUrl}/api/authentication/refresh`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as AuthSessionPayload;
-    if (!data?.accessToken || !data?.refreshToken || !data?.user) return null;
-
-    setAuthSession(data);
-    return data;
-  } catch {
-    return null;
+  if (refreshSessionPromise) {
+    return refreshSessionPromise;
   }
+
+  refreshSessionPromise = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return null;
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/authentication/refresh`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) return null;
+
+      const data = (await response.json()) as AuthSessionPayload;
+      if (!data?.accessToken || !data?.refreshToken || !data?.user) return null;
+
+      setAuthSession(data);
+      return data;
+    } catch {
+      return null;
+    } finally {
+      refreshSessionPromise = null;
+    }
+  })();
+
+  return refreshSessionPromise;
 }
 
 export function clearAuthSession(): void {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { subscriptionPlanSchema } from "../billing/model";
 
 export const authUserSchema = z.object({
   id: z.string().uuid(),
@@ -7,6 +8,9 @@ export const authUserSchema = z.object({
   image: z.string().nullable(),
   emailVerified: z.boolean(),
   role: z.enum(["USER", "ADMIN"]),
+  plan: subscriptionPlanSchema,
+  planExpiresAt: z.union([z.string(), z.null()]),
+  maxForms: z.number().int().positive(),
 });
 
 export const authTokensOutputSchema = z.object({

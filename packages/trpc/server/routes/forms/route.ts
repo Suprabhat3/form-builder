@@ -46,6 +46,7 @@ import { z, zodUndefinedModel } from "../../schema";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { db } from "../../../../database";
 import { resendClient } from "@repo/services/clients/resend";
+import { billingService, BillingError } from "@repo/services/billing";
 import { env } from "@repo/services/env";
 import { generatePath } from "../../utils/path-generator";
 
@@ -104,6 +105,17 @@ function fieldKeyFromType(type: (typeof fieldTypeEnum.enumValues)[number], idx: 
 
 const TAGS = ["Forms"];
 const getPath = generatePath("/forms");
+
+async function assertCanCreateForm(userId: string) {
+  try {
+    await billingService.assertCanCreateForm(userId);
+  } catch (error) {
+    if (error instanceof BillingError && error.code === "FORBIDDEN") {
+      throw new TRPCError({ code: "FORBIDDEN", message: error.message });
+    }
+    throw error;
+  }
+}
 
 function escapeHtml(input: string): string {
   return input
@@ -381,6 +393,7 @@ export const formRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      await assertCanCreateForm(ctx.user.id);
       const slug = await generateUniqueSlug(input.title);
 
       const inserted = await db
@@ -1726,6 +1739,7 @@ export const formRouter = router({
     .input(cloneTemplateInputSchema)
     .output(z.object({ formId: z.string().uuid(), slug: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      await assertCanCreateForm(ctx.user.id);
       const templateRows = await db
         .select({
           id: formsTable.id,

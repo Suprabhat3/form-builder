@@ -18,7 +18,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { PlusIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, Share2Icon, BarChart3Icon, ClipboardListIcon } from "lucide-react";
+import { PlusIcon, Edit3Icon, Trash2Icon, GlobeIcon, LockIcon, SparklesIcon, Share2Icon, BarChart3Icon, ClipboardListIcon, CrownIcon } from "lucide-react";
+import Link from "next/link";
 import { ShareDialog } from "~/components/share/ShareDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { toast } from "sonner";
@@ -62,6 +63,8 @@ export default function DashboardPage() {
             </Suspense>
           </div>
         </div>
+
+        <PlanUsageBanner />
 
         <FormsList />
       </main>
@@ -120,7 +123,11 @@ function CreateFormDialog({
       router.push(`/builder/${data.id}`);
     },
     onError: (err: { message: string }) => {
-      toast.error(err.message || "Failed to create form");
+      toast.error(err.message || "Failed to create form", {
+        action: err.message.includes("Upgrade")
+          ? { label: "View plans", onClick: () => router.push("/pricing") }
+          : undefined,
+      });
     }
   });
 
@@ -261,7 +268,46 @@ function CreateFormDialog({
   );
 }
 
+function PlanUsageBanner() {
+  const { data: usage } = trpc.billing.getUsage.useQuery();
 
+  if (!usage) return null;
+
+  const percent = Math.min(100, Math.round((usage.formCount / usage.maxForms) * 100));
+  const isNearLimit = usage.formCount >= usage.maxForms - 1;
+  const planLabel =
+    usage.plan === "FREE"
+      ? "Free plan"
+      : `${usage.plan.charAt(0)}${usage.plan.slice(1).toLowerCase()} plan`;
+
+  return (
+    <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <CrownIcon className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold text-slate-900">{planLabel}</p>
+          </div>
+          <p className="text-sm text-slate-500">
+            {usage.formCount} of {usage.maxForms} forms used
+            {usage.planExpiresAt ? ` · Renews ${new Date(usage.planExpiresAt).toLocaleDateString()}` : ""}
+          </p>
+        </div>
+        {usage.plan !== "BUSINESS" ? (
+          <Button asChild variant={isNearLimit ? "default" : "outline"} className="shrink-0">
+            <Link href="/pricing">{isNearLimit ? "Upgrade to create more" : "View plans"}</Link>
+          </Button>
+        ) : null}
+      </div>
+      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${isNearLimit ? "bg-primary" : "bg-primary/70"}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 function FormsList() {
   const { data: forms, isLoading } = trpc.form.listMine.useQuery();

@@ -1,6 +1,11 @@
 import { httpLink, httpBatchStreamLink } from "@repo/trpc/client";
 import { getApiBaseUrl, getApiUrl } from "~/lib/api-url";
-import { clearAuthSession, getAccessToken, refreshAuthSession } from "~/lib/auth-session";
+import {
+  clearAuthSession,
+  getAccessToken,
+  isAccessTokenUsable,
+  refreshAuthSession,
+} from "~/lib/auth-session";
 
 interface CreateTRPCHttpBatchClientClientOpts {
   enableStreaming?: boolean;
@@ -10,8 +15,6 @@ export const createTRPCHttpBatchClientClient = (opts?: CreateTRPCHttpBatchClient
   const c = opts?.enableStreaming ? httpBatchStreamLink : httpLink;
   const apiUrl = getApiUrl();
   const apiBaseUrl = getApiBaseUrl();
-
-  let refreshPromise: Promise<string | null> | null = null;
 
   const buildAuthHeaders = (): Record<string, string> => {
     const accessToken = getAccessToken();
@@ -44,20 +47,6 @@ export const createTRPCHttpBatchClientClient = (opts?: CreateTRPCHttpBatchClient
     return normalized;
   };
 
-  const refreshAccessToken = async (): Promise<string | null> => {
-    if (refreshPromise) return refreshPromise;
-    refreshPromise = (async () => {
-      try {
-        const refreshed = await refreshAuthSession(apiBaseUrl);
-        return refreshed?.accessToken ?? null;
-      } finally {
-        refreshPromise = null;
-      }
-    })();
-
-    return refreshPromise;
-  };
-
   return c({
     url: apiUrl,
     headers() {
@@ -77,9 +66,12 @@ export const createTRPCHttpBatchClientClient = (opts?: CreateTRPCHttpBatchClient
         return response;
       }
 
-      const newAccessToken = await refreshAccessToken();
+      const refreshed = await refreshAuthSession(apiBaseUrl);
+      const newAccessToken = refreshed?.accessToken ?? null;
       if (!newAccessToken) {
-        clearAuthSession();
+        if (!isAccessTokenUsable()) {
+          clearAuthSession();
+        }
         return response;
       }
 

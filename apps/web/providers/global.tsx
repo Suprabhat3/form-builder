@@ -11,9 +11,13 @@ import { createTRPCHttpBatchClientClient } from "~/trpc/create-client";
 import { getApiBaseUrl } from "~/lib/api-url";
 import {
   clearAuthSession,
+  consumeAuthCallbackFromUrl,
   getAccessTokenExpiryMs,
   getRefreshToken,
+  isAccessTokenUsable,
+  onAuthChange,
   refreshAuthSession,
+  shouldRefreshAccessToken,
 } from "~/lib/auth-session";
 
 const queryClient = new QueryClient({
@@ -49,7 +53,8 @@ export const GlobalProviders: React.FC<{ children: React.ReactNode }> = ({ child
     const scheduleRefresh = () => {
       clearRefreshTimer();
       const expiryMs = getAccessTokenExpiryMs();
-      if (!expiryMs) return;
+      if (!expiryMs || !getRefreshToken()) return;
+
       const msUntilExpiry = expiryMs - Date.now();
       const refreshIn = Math.max(msUntilExpiry - 60_000, 30_000);
       refreshTimerRef.current = window.setTimeout(() => {
@@ -57,40 +62,88 @@ export const GlobalProviders: React.FC<{ children: React.ReactNode }> = ({ child
       }, refreshIn);
     };
 
-    const attemptRefresh = async (source: "startup" | "focus" | "scheduled") => {
-      const refreshToken = getRefreshToken();
-      if (!refreshToken) return;
-
-      const result = await refreshAuthSession(apiBaseUrl);
-      if (!result && !toastGuardRef.current) {
-        toastGuardRef.current = true;
-        clearAuthSession();
-        toast.error("Session expired. Please sign in again.");
+    const attemptRefresh = async (source: "focus" | "scheduled") => {
+      if (!getRefreshToken()) {
+        clearRefreshTimer();
+        return;
       }
 
-      if (result) {
+      if (source === "focus" && !shouldRefreshAccessToken()) {
+        return;
+      }
+
+      const hadUsableSession = isAccessTokenUsable();
+      const result = await refreshAuthSession(apiBaseUrl);
+
+      if (!result) {
+        if (isAccessTokenUsable()) {
+          scheduleRefresh();
+          return;
+        }
+
+        clearAuthSession();
+
+        if (hadUsableSession && !toastGuardRef.current) {
+          toastGuardRef.current = true;
+          toast.error("Session expired. Please sign in again.");
+        }
+        return;
+      }
+
+      toastGuardRef.current = false;
+      scheduleRefresh();
+    };
+
+    const initSession = async () => {
+      // Process Google OAuth callback before any refresh logic (AuthForm may still be in Suspense).
+      const oauthCallback = consumeAuthCallbackFromUrl();
+      if (oauthCallback) {
+        toast.success("Signed in with Google");
         toastGuardRef.current = false;
         scheduleRefresh();
+        if (oauthCallback.nextPath) {
+          window.location.assign(oauthCallback.nextPath);
+        }
+        return;
       }
+
+      if (!getRefreshToken()) return;
+
+      if (isAccessTokenUsable()) {
+        scheduleRefresh();
+        return;
+      }
+
+      // Silently recover or clear stale sessions — never toast on initial page load.
+      const result = await refreshAuthSession(apiBaseUrl);
+      if (result) {
+        scheduleRefresh();
+        return;
+      }
+
+      clearAuthSession();
     };
 
     const handleFocus = () => {
       if (document.visibilityState === "hidden") return;
-      const expiryMs = getAccessTokenExpiryMs();
-      if (!expiryMs) return;
-      const msUntilExpiry = expiryMs - Date.now();
-      if (msUntilExpiry < 120_000) {
+      if (shouldRefreshAccessToken()) {
         void attemptRefresh("focus");
       }
     };
 
-    void attemptRefresh("startup");
-    scheduleRefresh();
+    void initSession();
+
+    const unsubscribeAuth = onAuthChange(() => {
+      toastGuardRef.current = false;
+      scheduleRefresh();
+    });
+
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleFocus);
 
     return () => {
       clearRefreshTimer();
+      unsubscribeAuth();
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleFocus);
     };

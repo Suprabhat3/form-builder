@@ -40,7 +40,7 @@ export function Footer() {
               <Link className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="/templates">
                 Templates
               </Link>
-              <Link className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">
+              <Link className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="/pricing">
                 Pricing
               </Link>
             </div>
