@@ -2,13 +2,74 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { setAuthSession, setPendingSignup } from "~/lib/auth-session";
 import { env } from "~/env.js";
 import { trpc } from "~/trpc/client";
 
+const authServerBaseUrl = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/trpc").replace(/\/trpc\/?$/, "");
+
 export function AuthForm({ type }: { type: "login" | "signup" }) {
+  return (
+    <Suspense fallback={<AuthFormFallback type={type} />}>
+      <AuthFormContent type={type} />
+    </Suspense>
+  );
+}
+
+function AuthFormFallback({ type }: { type: "login" | "signup" }) {
+  const isLogin = type === "login";
+  const title = isLogin ? "Welcome back" : "Create an account";
+  const subtitle = isLogin
+    ? "Enter your details to access your account."
+    : "Sign up to start building beautiful forms.";
+
+  return (
+    <div className="bg-background text-on-surface font-body-md antialiased min-h-screen flex flex-col relative overflow-x-hidden">
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary-fixed/30 rounded-full blur-[120px]"></div>
+        <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] bg-secondary-fixed/30 rounded-full blur-[100px]"></div>
+      </div>
+
+      <nav className="relative z-10 flex justify-between items-center w-full px-margin py-6 max-w-7xl mx-auto">
+        <Link
+          className="text-headline-md font-headline-md font-bold tracking-tight text-on-surface flex items-center gap-ds-xs hover:opacity-80 transition-opacity"
+          href="/"
+        >
+          <span
+            className="material-symbols-outlined text-primary"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
+            layers
+          </span>
+          ZenForm
+        </Link>
+      </nav>
+
+      <main
+        className="flex-grow flex items-center justify-center relative z-10 w-full"
+        style={{ padding: "64px 32px" }}
+      >
+        <div
+          className="w-full bg-surface-container-lowest rounded-2xl border border-outline-variant/40 soft-focus-shadow relative overflow-hidden"
+          style={{ maxWidth: "448px", padding: "40px" }}
+        >
+          <div className="text-center" style={{ marginBottom: "40px" }}>
+            <h1 className="font-bold text-on-surface" style={{ fontSize: "24px", marginBottom: "8px" }}>
+              {title}
+            </h1>
+            <p className="text-on-surface-variant" style={{ fontSize: "16px" }}>
+              {subtitle}
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function AuthFormContent({ type }: { type: "login" | "signup" }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
@@ -273,4 +334,3 @@ export function AuthForm({ type }: { type: "login" | "signup" }) {
     </div>
   );
 }
-  const authServerBaseUrl = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/trpc").replace(/\/trpc\/?$/, "");
